@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calling System</title>
+<meta name="theme-color" content="#0d1117">
+<link rel="manifest" href="manifest.json">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#0d1117; --surface:#161b22; --surface2:#1c2230; --line:#2a3240;
+    --ink:#e8edf4; --muted:#8b97a8; --faint:#5a6678;
+    --accent:#3b82f6; --accent2:#1e40af;
+    --call:#16a34a; --wa:#22c55e; --sms:#3b82f6; --del:#ef4444;
+    --new:#3a3320; --new-t:#d4b94e;
+    --done:#14331f; --done-t:#4ade80;
+    --later:#3a2812; --later-t:#fb923c;
+    --no:#3a1818; --no-t:#f87171;
+    --int:#16263f; --int-t:#60a5fa;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg);color:var(--ink);padding:14px 12px 70px;max-width:760px;margin:0 auto;}
+  header{display:flex;align-items:baseline;gap:10px;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:12px;}
+  header h1{font-size:20px;letter-spacing:.5px;}
+  header .count{margin-left:auto;font-size:13px;font-weight:700;color:var(--accent);}
+
+  /* Daily target card */
+  .target{background:linear-gradient(135deg,var(--surface2),var(--surface));border:1px solid var(--line);color:var(--ink);border-radius:14px;padding:14px 15px;margin-bottom:12px;}
+  .target .tline{display:flex;align-items:center;gap:8px;margin-bottom:9px;}
+  .target .tline b{font-size:15px;}
+  .target .tbig{font-size:22px;font-weight:800;margin-left:auto;font-variant-numeric:tabular-nums;}
+  .target .tbig small{font-size:13px;font-weight:500;opacity:.7;}
+  .bar{height:9px;background:rgba(255,255,255,.08);border-radius:6px;overflow:hidden;}
+  .bar > i{display:block;height:100%;background:var(--accent);border-radius:6px;transition:width .3s;}
+  .target .tedit{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;opacity:.85;}
+  .target .tedit input{width:60px;padding:5px 7px;font-size:13px;border-radius:6px;border:none;text-align:center;}
+  .target .tedit button{padding:5px 10px;font-size:12px;background:var(--accent);}
+
+  .stats{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+  .stat{flex:1;min-width:62px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 4px;text-align:center;}
+  .stat b{display:block;font-size:18px;}
+  .stat span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+
+  /* Follow-up banner */
+  .duebar{background:var(--later);border:1px solid var(--later-t);border-radius:10px;padding:10px 12px;margin-bottom:12px;
+    font-size:13px;font-weight:700;color:var(--later-t);display:none;}
+  .duebar.show{display:block;}
+
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:14px;}
+  .panel h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+  input,textarea,select{font-size:15px;padding:10px 11px;border:1px solid var(--line);border-radius:8px;background:var(--surface2);color:var(--ink);width:100%;font-family:inherit;}
+  .row input{flex:1;min-width:130px;}
+  textarea{resize:vertical;min-height:46px;}
+  label.sub{font-size:11px;color:var(--muted);display:block;margin:4px 2px;}
+
+  button{cursor:pointer;border:none;border-radius:8px;font-weight:700;font-size:14px;padding:10px 14px;color:#fff;}
+  .btn-add{background:var(--accent);width:100%;}
+  .btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--line);}
+
+  .tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+  .tools button,.tools label{flex:1;min-width:110px;text-align:center;}
+  .filein{display:none;}
+  .fakefile{background:transparent;color:var(--ink);border:1px dashed var(--line);border-radius:8px;padding:10px;font-weight:700;font-size:14px;cursor:pointer;}
+
+  .filterbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+  .chip{background:var(--surface2);border:1px solid var(--line);border-radius:20px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);}
+  .chip.on{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+  .search{margin-bottom:12px;}
+
+  .card{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-bottom:10px;}
+  .card.done{opacity:.6;}
+  .card.due{border-color:#e6b985;box-shadow:0 0 0 2px #fbe6cf;}
+  .card .top{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .card .name{font-weight:800;font-size:16px;}
+  .card .num{font-size:13px;color:var(--muted);margin-left:auto;font-variant-numeric:tabular-nums;}
+  .card .note{font-size:12px;color:var(--muted);margin:-2px 0 8px;}
+  .card .meta{font-size:11px;color:var(--faint);margin:-2px 0 8px;}
+  .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;margin-bottom:8px;margin-right:5px;}
+  .b-new{background:#eee5d2;color:var(--new-t);} .b-done{background:var(--done);color:var(--done-t);}
+  .b-later{background:var(--later);color:var(--later-t);} .b-no{background:var(--no);color:var(--no-t);}
+  .b-int{background:var(--int);color:var(--int-t);}
+  .badge-due{background:var(--later);color:var(--later-t);}
+
+  .actions{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:8px;}
+  .actions a,.actions button{text-decoration:none;text-align:center;display:block;border-radius:7px;padding:9px 4px;font-size:13px;font-weight:700;color:#fff;}
+  .a-call{background:var(--call);} .a-wa{background:var(--wa);} .a-sms{background:var(--sms);}
+  .a-del{background:transparent;color:var(--del);border:1px solid var(--del);}
+
+  .statusrow{display:flex;gap:5px;flex-wrap:wrap;}
+  .statusrow button{flex:1;min-width:58px;font-size:11px;padding:7px 3px;background:var(--surface2);color:var(--muted);border:1px solid var(--line);}
+  .statusrow button.sel{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .langrow{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .langlbl{font-size:11px;color:var(--muted);font-weight:700;}
+  .langsel{font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface2);width:auto;flex:1;}
+  .selbox{width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;}
+  .card .top{gap:10px;}
+  .bulkbar{position:sticky;top:0;z-index:40;background:linear-gradient(135deg,var(--accent),var(--accent2));
+    color:#fff;border-radius:12px;padding:11px 13px;margin-bottom:12px;display:none;
+    align-items:center;gap:10px;box-shadow:0 6px 18px rgba(0,0,0,.4);}
+  .bulkbar.show{display:flex;}
+  .bulkbar b{font-size:15px;}
+  .bulkbar .spacer{flex:1;}
+  .bulkbar button{background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:8px;
+    padding:9px 13px;font-size:13px;font-weight:800;cursor:pointer;}
+  .bulkbar button.wa{background:#fff;color:var(--accent2);}
+  .seltools{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+  .seltools button{background:var(--surface2);color:var(--muted);border:1px solid var(--line);
+    border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;flex:none;width:auto;}
+
+  .empty{text-align:center;color:var(--faint);padding:30px 10px;font-size:14px;}
+  .hint{font-size:11px;color:var(--faint);margin:6px 0 12px;line-height:1.5;}
+  details{margin-bottom:14px;}
+  summary{cursor:pointer;font-size:13px;color:var(--accent);font-weight:700;}
+
+  /* follow-up date prompt */
+  .dlg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:50;}
+  .dlg.show{display:flex;}
+  .dlg .box{background:var(--surface);border-radius:14px;padding:18px;width:100%;max-width:340px;}
+  .dlg h3{font-size:15px;margin-bottom:12px;}
+  .dlg input{margin-bottom:12px;}
+  .dlg .drow{display:flex;gap:8px;}
+  .dlg .drow button{flex:1;}
+
+  /* Install button - floating bottom right */
+  #installBtn{position:fixed;right:14px;bottom:16px;z-index:60;display:none;
+    background:var(--accent);color:#fff;border-radius:30px;padding:11px 16px;
+    font-size:14px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.25);
+    border:none;cursor:pointer;}
+  #installBtn.show{display:block;}
+
+
+  /* premium dark touches */
+  body{background-image:radial-gradient(900px 500px at 100% -10%,rgba(59,130,246,.06),transparent);}
+  .card{box-shadow:0 1px 0 rgba(255,255,255,.02), 0 6px 18px rgba(0,0,0,.35);}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.18);}
+  .btn-add{box-shadow:0 4px 14px rgba(59,130,246,.3);}
+  ::placeholder{color:var(--faint);}
+  header h1{background:linear-gradient(90deg,var(--ink),var(--muted));-webkit-background-clip:text;background-clip:text;}
+</style>
+</head>
+<body>
+<!-- ===== LICENSE GATE ===== -->
+<div id="licGate" style="position:fixed;inset:0;z-index:9999;background:#0d1117;display:flex;align-items:center;justify-content:center;padding:24px;">
+  <div style="max-width:360px;width:100%;text-align:center;">
+    <div style="font-size:40px;margin-bottom:10px;">🔐</div>
+    <h2 style="color:#e8edf4;font-size:20px;margin-bottom:6px;">Calling System</h2>
+    <p style="color:#8b97a8;font-size:13px;margin-bottom:18px;">Apni license key daalein aur activate karein.</p>
+    <input id="licInput" placeholder="License key" style="width:100%;padding:13px;border:1px solid #2a3240;border-radius:10px;background:#161b22;color:#e8edf4;font-size:15px;text-align:center;letter-spacing:1px;margin-bottom:10px;">
+    <button id="licBtn" onclick="activateLicense()" style="width:100%;padding:13px;border:none;border-radius:10px;background:#3b82f6;color:#fff;font-size:15px;font-weight:800;cursor:pointer;">Activate</button>
+    <p id="licMsg" style="color:#f87171;font-size:12px;margin-top:10px;min-height:16px;"></p>
+    <p style="color:#5a6678;font-size:11px;margin-top:14px;">Key ke liye sampark karein.</p>
+  </div>
+</div>
+
+<header>
+  <h1>Calling System</h1>
+  <span class="count" id="count">0</span>
+</header>
+
+<!-- DAILY TARGET -->
+<div class="target">
+  <div class="tline">
+    <b>📞 Aaj ke calls</b>
+    <span class="tbig"><span id="todayCount">0</span><small> / <span id="targetVal">20</span></small></span>
+  </div>
+  <div class="bar"><i id="targetBar" style="width:0%"></i></div>
+  <div class="tedit">
+    Target set karein:
+    <input id="targetInput" type="number" min="1" value="20" inputmode="numeric">
+    <button onclick="saveTarget()">Set</button>
+  </div>
+</div>
+
+<!-- FOLLOW-UP BANNER -->
+<div class="duebar" id="duebar" onclick="setFilter('due')"></div>
+
+<div class="stats" id="stats"></div>
+
+<div class="panel">
+  <h2>Naya customer jodein</h2>
+  <div class="row">
+    <input id="f-name" placeholder="Naam">
+    <input id="f-num" placeholder="Mobile number" inputmode="numeric">
+  </div>
+  <textarea id="f-msg" placeholder="Is customer ke liye WhatsApp/SMS message (optional)"></textarea>
+  <div style="height:8px"></div>
+  <button class="btn-add" onclick="addOne()">+ Add customer</button>
+</div>
+
+<details>
+  <summary>📝 Language message templates (edit karein)</summary>
+  <div class="panel" style="margin-top:10px">
+    <label class="sub">Bhasha chuno, message edit karo, phir Save dabao. {name} likhoge to customer ka naam apne aap aayega.</label>
+    <select id="tmplLang" onchange="loadTmplEditor()" style="margin-bottom:8px"></select>
+    <textarea id="tmplText" style="min-height:90px"></textarea>
+    <div style="height:8px"></div>
+    <button class="btn-add" onclick="saveTmpl()">💾 Save this language</button>
+  </div>
+</details>
+
+<div class="tools">
+  <label class="fakefile">📂 Data import (Excel ya CSV)
+    <input class="filein" type="file" accept=".csv,.xlsx,.xls" onchange="importFile(event)">
+  </label>
+  <button class="btn-ghost" onclick="exportCSV()">⬇ Export CSV</button>
+  <button class="btn-ghost" onclick="clearAll()">🗑 Clear all</button>
+</div>
+<div class="hint">Excel ya CSV daalein. Column: 1=Naam, 2=Number, 3=Message(optional), 4=State(optional). Header row optional. State se bhasha apne aap set hogi.</div>
+
+<div class="bulkbar" id="bulkbar">
+  <b id="bulkcount">0 selected</b>
+  <div class="spacer"></div>
+  <button class="wa" onclick="bulkWhatsApp()">💬 WhatsApp sabko</button>
+  <button onclick="clearSel()">✕</button>
+</div>
+<div class="seltools">
+  <button onclick="selectAllShown()">☑ Sab select</button>
+  <button onclick="clearSel()">▢ Clear</button>
+</div>
+<div class="filterbar" id="filterbar"></div>
+<input class="search" id="search" placeholder="🔍 Naam ya number search..." oninput="render()">
+
+<div id="list"></div>
+
+<!-- follow-up date dialog -->
+<div class="dlg" id="dlg">
+  <div class="box">
+    <h3>Kab dobara call karna hai?</h3>
+    <input id="dlgDate" type="date">
+    <div class="drow">
+      <button class="btn-ghost" onclick="closeDlg()">Cancel</button>
+      <button class="btn-add" style="width:auto" onclick="confirmDlg()">Set reminder</button>
+    </div>
+  </div>
+</div>
+
+<!-- floating install button -->
+<button id="installBtn" onclick="doInstall()">⬇ Install App</button>
+
+<script>
+const KEY="calling_product_v1";
+const SEED_DATA=[];
+const LANGS=[["hi", "हिन्दी Hindi"], ["en", "English"], ["ta", "தமிழ் Tamil"], ["te", "తెలుగు Telugu"], ["kn", "ಕನ್ನಡ Kannada"], ["ml", "മലയാളം Malayalam"], ["mr", "मराठी Marathi"], ["pa", "ਪੰਜਾਬੀ Punjabi"], ["gu", "ગુજરાતી Gujarati"], ["bn", "বাংলা Bengali"], ["or", "ଓଡ଼ିଆ Odia"]];
+const DEFAULT_TEMPLATES={"hi": "नमस्ते {name} जी! हम अपनी सेवा के बारे में आपसे बात करना चाहते थे। कृपया हमें बताएं कि क्या आप अधिक जानकारी चाहेंगे।", "en": "Hello {name}! We wanted to tell you about our service. Please let us know if you'd like more details.", "ta": "வணக்கம் {name}! எங்கள் சேவை குறித்து உங்களிடம் பேச விரும்பினோம். மேலும் விவரங்கள் வேண்டுமா என்று எங்களுக்குத் தெரிவிக்கவும்.", "te": "నమస్కారం {name}! మా సేవ గురించి మీతో మాట్లాడాలనుకున్నాము. మరిన్ని వివరాలు కావాలంటే మాకు తెలియజేయండి.", "kn": "ನಮಸ್ಕಾರ {name}! ನಮ್ಮ ಸೇವೆಯ ಬಗ್ಗೆ ನಿಮ್ಮೊಂದಿಗೆ ಮಾತನಾಡಲು ಬಯಸಿದ್ದೆವು. ಹೆಚ್ಚಿನ ಮಾಹಿತಿ ಬೇಕಿದ್ದರೆ ತಿಳಿಸಿ.", "ml": "നമസ്കാരം {name}! ഞങ്ങളുടെ സേവനത്തെക്കുറിച്ച് നിങ്ങളോട് സംസാരിക്കാൻ ആഗ്രഹിച്ചു. കൂടുതൽ വിവരങ്ങൾ വേണമെങ്കിൽ അറിയിക്കുക.", "mr": "नमस्कार {name}! आमच्या सेवेबद्दल तुमच्याशी बोलायचे होते. अधिक माहिती हवी असल्यास आम्हाला कळवा.", "pa": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ {name}! ਅਸੀਂ ਆਪਣੀ ਸੇਵਾ ਬਾਰੇ ਤੁਹਾਡੇ ਨਾਲ ਗੱਲ ਕਰਨਾ ਚਾਹੁੰਦੇ ਸੀ। ਜੇ ਤੁਸੀਂ ਹੋਰ ਜਾਣਕਾਰੀ ਚਾਹੁੰਦੇ ਹੋ ਤਾਂ ਸਾਨੂੰ ਦੱਸੋ।", "gu": "નમસ્તે {name}! અમે અમારી સેવા વિશે તમારી સાથે વાત કરવા માગતા હતા. વધુ માહિતી જોઈતી હોય તો અમને જણાવો.", "bn": "নমস্কার {name}! আমরা আমাদের পরিষেবা সম্পর্কে আপনার সাথে কথা বলতে চেয়েছিলাম। আরও তথ্য চাইলে আমাদের জানান।", "or": "ନମସ୍କାର {name}! ଆମେ ଆମର ସେବା ବିଷୟରେ ଆପଣଙ୍କ ସହ କଥା ହେବାକୁ ଚାହୁଁଥିଲୁ। ଅଧିକ ସୂଚନା ଆବଶ୍ୟକ ହେଲେ ଆମକୁ ଜଣାନ୍ତୁ।"};
+const TMPLKEY="calling_templates_v1";
+const STATE_LANG={"maharashtra":"mr","tamil nadu":"ta","delhi":"hi","andhra pradesh":"te","karnataka":"kn","uttar pradesh":"hi","west bengal":"bn","gujarat":"gu","madhya pradesh":"hi","kerala":"ml","haryana":"hi","jharkhand":"hi","rajasthan":"hi","chhatisgarh":"hi","chhattisgarh":"hi","punjab":"pa","orissa":"or","odisha":"or","assam":"bn","uttaranchal":"hi","uttarakhand":"hi","bihar":"hi","jammu & kashmir":"hi","chandigarh":"pa","himachal pradesh":"hi","telangana":"te","goa":"mr"};
+function langForState(s){if(!s)return"";return STATE_LANG[(""+s).trim().toLowerCase()]||"";}
+const DKEY="calling_default_msg";
+const TKEY="calling_daily_target";
+const LKEY="calling_call_log"; // {date: count}
+const STATUSES=[
+  {k:"new",   label:"Pending",   badge:"b-new"},
+  {k:"done",  label:"Ho gaya",   badge:"b-done"},
+  {k:"later", label:"Baad mein", badge:"b-later"},
+  {k:"no",    label:"Nahi utha", badge:"b-no"},
+  {k:"int",   label:"Interested",badge:"b-int"},
+];
+let data=[];
+let filter="all";
+let dlgIndex=null;
+
+function todayStr(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function fmtDate(s){if(!s)return"";const[y,m,d]=s.split("-");return d+"/"+m+"/"+y.slice(2);}
+
+function load(){
+  try{data=JSON.parse(localStorage.getItem(KEY))||[];}catch(e){data=[];}
+  if((!data||data.length===0) && !localStorage.getItem("seeded_product_v1")){
+    data=SEED_DATA.slice();
+    localStorage.setItem(KEY,JSON.stringify(data));
+    localStorage.setItem("seeded_product_v1","1");
+  }
+  data.forEach(d=>{if(!d.status)d.status="new";});
+  const t=localStorage.getItem(TKEY)||"20";
+  document.getElementById('targetInput').value=t;
+  document.getElementById('targetVal').textContent=t;
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(data));}
+function getTemplates(){
+  try{const t=JSON.parse(localStorage.getItem(TMPLKEY)); if(t) return Object.assign({},DEFAULT_TEMPLATES,t);}catch(e){}
+  return Object.assign({},DEFAULT_TEMPLATES);
+}
+function saveTemplates(obj){localStorage.setItem(TMPLKEY,JSON.stringify(obj));}
+function fillTmplLangDropdown(){
+  const sel=document.getElementById('tmplLang');
+  if(!sel) return;
+  sel.innerHTML=LANGS.map(l=>`<option value="${l[0]}">${l[1]}</option>`).join('');
+  loadTmplEditor();
+}
+function loadTmplEditor(){
+  const code=document.getElementById('tmplLang').value;
+  document.getElementById('tmplText').value=getTemplates()[code]||'';
+}
+function saveTmpl(){
+  const code=document.getElementById('tmplLang').value;
+  const txt=document.getElementById('tmplText').value;
+  const t=getTemplates(); t[code]=txt; saveTemplates(t);
+  alert("Template save ho gaya ("+code+")");
+  render();
+}
+// build the actual message for a customer using their language template
+function msgFor(d){
+  const t=getTemplates();
+  const code=d.lang||'en';
+  let m = (d.msg && d.msg.trim()) ? d.msg : (t[code]||t['en']||'Namaste');
+  return m.replace(/\{name\}/g, d.name||'');
+}
+
+function getTarget(){return parseInt(localStorage.getItem(TKEY)||"20")||20;}
+function saveTarget(){
+  const v=parseInt(document.getElementById('targetInput').value)||20;
+  localStorage.setItem(TKEY,v);
+  document.getElementById('targetVal').textContent=v;
+  render();
+}
+function getLog(){try{return JSON.parse(localStorage.getItem(LKEY))||{};}catch(e){return{};}}
+function todayCalls(){return getLog()[todayStr()]||0;}
+function bumpToday(){const l=getLog();const t=todayStr();l[t]=(l[t]||0)+1;localStorage.setItem(LKEY,JSON.stringify(l));}
+
+function cleanNum(n){return (n||"").replace(/[^\d+]/g,"");}
+function waNum(n){let x=n.replace(/\D/g,"");if(x.length===10)x="91"+x;if(x.startsWith("0"))x="91"+x.slice(1);return x;}
+
+function addOne(){
+  const name=document.getElementById('f-name').value.trim();
+  const num=cleanNum(document.getElementById('f-num').value);
+  const msg=document.getElementById('f-msg').value.trim();
+  if(!name||!num){alert("Naam aur number dono zaroori hain.");return;}
+  if(data.some(d=>d.num===num)){if(!confirm("Yeh number pehle se hai. Phir bhi add karein?"))return;}
+  data.unshift({name,num,msg,status:"new",followup:"",updated:""});
+  save();
+  document.getElementById('f-name').value="";document.getElementById('f-num').value="";document.getElementById('f-msg').value="";
+  render();
+}
+function del(i){if(confirm("Hatayein?")){data.splice(i,1);save();render();}}
+function clearAll(){if(confirm("Saara data delete? Pakka?")){data=[];save();render();}}
+
+// when a call button is tapped
+function onCall(i){bumpToday();data[i].updated=todayStr();save();setTimeout(render,400);}
+
+function setStatus(i,s){
+  data[i].status=s;
+  data[i].updated=todayStr();
+  if(s==="later"){ openDlg(i); return; } // ask for follow-up date
+  if(s!=="later") data[i].followup=""; // clear reminder if moved off "later"
+  save();render();
+}
+
+// follow-up date dialog
+function openDlg(i){
+  dlgIndex=i;
+  const d=new Date();d.setDate(d.getDate()+1); // default tomorrow
+  document.getElementById('dlgDate').value=todayStr.call(null);
+  document.getElementById('dlgDate').value=(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"));
+  document.getElementById('dlg').classList.add('show');
+}
+function closeDlg(){
+  // still mark as later even if cancelled, just no date
+  if(dlgIndex!=null){save();render();}
+  document.getElementById('dlg').classList.remove('show');dlgIndex=null;
+}
+function confirmDlg(){
+  const date=document.getElementById('dlgDate').value;
+  if(dlgIndex!=null){data[dlgIndex].followup=date;save();}
+  document.getElementById('dlg').classList.remove('show');dlgIndex=null;render();
+}
+
+function importFile(e){
+  const file=e.target.files[0];if(!file)return;
+  const name=(file.name||"").toLowerCase();
+  if(name.endsWith(".xlsx")||name.endsWith(".xls")){ importExcel(file); }
+  else { importCSVfile(file); }
+  e.target.value="";
+}
+function addRows(arr){
+  let added=0;
+  arr.forEach(c=>{
+    const nm=(c[0]||"").toString().trim();
+    const num=cleanNum((c[1]||"").toString());
+    const msg=(c[2]||"").toString().trim();
+    const state=(c[3]||"").toString().trim();
+    if(nm&&num){
+      const lang=langForState(state)|| "hi";
+      data.push({name:nm,num,msg,status:"new",followup:"",updated:"",state,lang});
+      added++;
+    }
+  });
+  save();render();alert(added+" customers import ho gaye.");
+}
+function isHeader(row){
+  const j=(row.join? row.join(" ") : "").toLowerCase();
+  return /name|naam|number|mobile|phone/.test(j);
+}
+function importCSVfile(file){
+  const r=new FileReader();
+  r.onload=function(){
+    const lines=r.result.split(/\r?\n/).filter(l=>l.trim());
+    if(!lines.length){alert("File khaali hai.");return;}
+    let start=isHeader(splitCSV(lines[0]))?1:0;
+    const rows=[];
+    for(let i=start;i<lines.length;i++){rows.push(splitCSV(lines[i]));}
+    addRows(rows);
+  };
+  r.readAsText(file);
+}
+function importExcel(file){
+  if(typeof XLSX==="undefined"){alert("Excel reader load nahi hua. Internet check karein ya CSV use karein.");return;}
+  const r=new FileReader();
+  r.onload=function(){
+    try{
+      const wb=XLSX.read(new Uint8Array(r.result),{type:"array"});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      let rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
+      rows=rows.filter(rw=>rw && rw.some(c=>(""+c).trim()!==""));
+      if(!rows.length){alert("File khaali hai.");return;}
+      if(isHeader(rows[0])) rows=rows.slice(1);
+      addRows(rows);
+    }catch(err){alert("Excel padhne me dikkat: "+err.message);}
+  };
+  r.readAsArrayBuffer(file);
+}
+function splitCSV(line){const out=[];let cur="";let q=false;
+  for(let i=0;i<line.length;i++){const ch=line[i];
+    if(ch==='"')q=!q;else if(ch===','&&!q){out.push(cur);cur="";}else cur+=ch;}
+  out.push(cur);return out;}
+
+function exportCSV(){
+  let csv="name,number,message,status,followup,state,lang\n";
+  data.forEach(d=>{csv+=`"${d.name}","${d.num}","${(d.msg||"").replace(/"/g,'""')}","${d.status}","${d.followup||""}","${d.state||""}","${d.lang||""}"\n`;});
+  const blob=new Blob([csv],{type:"text/csv"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="customers.csv";a.click();
+}
+
+function isDue(d){return d.status==="later" && d.followup && d.followup<=todayStr();}
+
+function renderTarget(){
+  const t=getTarget(),c=todayCalls();
+  document.getElementById('todayCount').textContent=c;
+  document.getElementById('targetVal').textContent=t;
+  const pct=Math.min(100,Math.round(c/t*100));
+  document.getElementById('targetBar').style.width=pct+"%";
+}
+function renderDuebar(){
+  const due=data.filter(isDue).length;
+  const bar=document.getElementById('duebar');
+  if(due>0){bar.classList.add('show');bar.textContent=`🔔 Aaj ${due} follow-up call due hain — dekhne ke liye tap karein`;}
+  else bar.classList.remove('show');
+}
+function renderStats(){
+  const c={total:data.length};STATUSES.forEach(s=>c[s.k]=0);
+  data.forEach(d=>c[d.status]=(c[d.status]||0)+1);
+  document.getElementById('stats').innerHTML=`
+    <div class="stat"><b>${c.total}</b><span>Total</span></div>
+    <div class="stat"><b>${c.new}</b><span>Pending</span></div>
+    <div class="stat"><b>${c.done}</b><span>Done</span></div>
+    <div class="stat"><b>${c.later}</b><span>Baad mein</span></div>
+    <div class="stat"><b>${c.int}</b><span>Interested</span></div>`;
+}
+function renderFilters(){
+  const dueN=data.filter(isDue).length;
+  const opts=[{k:"all",label:"Sab"},{k:"due",label:"Due "+(dueN?`(${dueN})`:"")}].concat(STATUSES.map(s=>({k:s.k,label:s.label})));
+  document.getElementById('filterbar').innerHTML=opts.map(o=>
+    `<div class="chip ${filter===o.k?'on':''}" onclick="setFilter('${o.k}')">${o.label}</div>`).join("");
+}
+function setFilter(f){filter=f;render();window.scrollTo({top:0,behavior:'smooth'});}
+
+function langName(code){const f=LANGS.find(l=>l[0]===code);return f?f[1]:code;}
+function langOptions(sel){return LANGS.map(l=>`<option value="${l[0]}" ${l[0]===sel?'selected':''}>${l[1]}</option>`).join('');}
+function stateLabel(s){return s?esc(s):'—';}
+function setLang(i,code){data[i].lang=code;save();render();}
+let selected={};
+function toggleSel(i,checked){ if(checked) selected[i]=true; else delete selected[i]; updateBulkBar(); }
+function selCount(){return Object.keys(selected).length;}
+function updateBulkBar(){
+  const n=selCount();
+  const bar=document.getElementById('bulkbar');
+  document.getElementById('bulkcount').textContent=n+" selected";
+  if(n>0) bar.classList.add('show'); else bar.classList.remove('show');
+}
+function clearSel(){selected={};render();}
+function selectAllShown(){
+  lastShownIdx.forEach(i=>{selected[i]=true;});
+  render();
+}
+let lastShownIdx=[];
+function bulkWhatsApp(){
+  const idxs=Object.keys(selected).map(Number);
+  if(!idxs.length){alert("Pehle customer select karo.");return;}
+  if(!confirm(idxs.length+" logo ka WhatsApp ek-ek karke khulega. Har ek pe SEND dabana hai. Shuru karein?"))return;
+  let n=0;
+  idxs.forEach((i,k)=>{
+    const d=data[i]; if(!d) return;
+    const wa=waNum(d.num); const msg=encodeURIComponent(msgFor(d));
+    setTimeout(()=>{ window.open('https://wa.me/'+wa+'?text='+msg,'_blank'); }, k*1200);
+    // mark as contacted
+    n++;
+  });
+  setTimeout(()=>{ alert(n+" WhatsApp tab khul gaye. Ab har tab me SEND dabao."); }, idxs.length*1200+300);
+}
+function render(){
+  renderTarget();renderDuebar();renderStats();renderFilters();
+  const q=document.getElementById('search').value.trim().toLowerCase();
+  const list=document.getElementById('list');
+  document.getElementById('count').textContent=data.length+" customers";
+
+  let arr=data.map((d,i)=>({d,i}));
+  // due first ordering
+  arr.sort((a,b)=>(isDue(b.d)?1:0)-(isDue(a.d)?1:0));
+
+  const shown=arr.filter(({d})=>{
+    if(filter==="due"){if(!isDue(d))return false;}
+    else if(filter!=="all" && d.status!==filter) return false;
+    if(q && !(d.name.toLowerCase().includes(q)||d.num.includes(q))) return false;
+    return true;
+  });
+  if(!shown.length){
+    list.innerHTML='<div class="empty">'+(data.length?'Koi match nahi mila.':'Abhi koi customer nahi. Upar se add karein ya CSV import karein.')+'</div>';
+    return;
+  }
+  lastShownIdx=shown.map(o=>o.i);
+  list.innerHTML=shown.map(({d,i})=>{
+    const msg=encodeURIComponent(msgFor(d));
+    const tel=d.num, wa=waNum(d.num);
+    const st=STATUSES.find(s=>s.k===d.status)||STATUSES[0];
+    const due=isDue(d);
+    return `<div class="card ${d.status==='done'?'done':''} ${due?'due':''}">
+      <div class="top">
+        <input type="checkbox" class="selbox" ${selected[i]?'checked':''} onclick="toggleSel(${i},this.checked)">
+        <span class="name">${esc(d.name)}</span>
+        <span class="num">${esc(d.num)}</span>
+      </div>
+      <span class="badge ${st.badge}">${st.label}</span>
+      ${d.followup?`<span class="badge badge-due">🔔 ${fmtDate(d.followup)}</span>`:''}
+      ${d.msg?`<div class="note">📝 ${esc(d.msg)}</div>`:''}
+      ${d.updated?`<div class="meta">Last update: ${fmtDate(d.updated)}</div>`:''}
+      <div class="langrow">
+        <span class="langlbl">🌐 ${stateLabel(d.state)}</span>
+        <select class="langsel" onchange="setLang(${i},this.value)">${langOptions(d.lang)}</select>
+      </div>
+      <div class="actions">
+        <a class="a-call" href="tel:${tel}" onclick="onCall(${i})">📞 Call</a>
+        <a class="a-wa" href="https://wa.me/${wa}?text=${msg}" target="_blank" rel="noopener">💬 WA</a>
+        <a class="a-sms" href="sms:${tel}?body=${msg}">✉️ SMS</a>
+        <button class="a-del" onclick="del(${i})">Delete</button>
+      </div>
+      <div class="statusrow">
+        ${STATUSES.map(s=>`<button class="${d.status===s.k?'sel':''}" onclick="setStatus(${i},'${s.k}')">${s.label}</button>`).join("")}
+      </div>
+    </div>`;
+  }).join("");
+}
+function esc(s){return (s||"").replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+// ---- Install (PWA) ----
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',(e)=>{
+  e.preventDefault();
+  deferredPrompt=e;
+  document.getElementById('installBtn').classList.add('show');
+});
+window.addEventListener('appinstalled',()=>{
+  document.getElementById('installBtn').classList.remove('show');
+  deferredPrompt=null;
+});
+function doInstall(){
+  if(deferredPrompt){
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.finally(()=>{
+      deferredPrompt=null;
+      document.getElementById('installBtn').classList.remove('show');
+    });
+  } else {
+    alert("Install karne ke liye:\n\nChrome (Android): upar 3 dots (⋮) → 'Add to Home screen'\n\niPhone (Safari): niche Share (□↑) → 'Add to Home Screen'");
+  }
+}
+// register a tiny service worker so install works (needed for PWA)
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+
+
+// ===== LICENSE SYSTEM =====
+// IMPORTANT: apna Apps Script web-app URL yahan daalein (setup guide me bataya hai)
+const LICENSE_API="https://script.google.com/macros/s/AKfycbxvDj01LPYrhG3NvXMnp_obviPAlCxrMecfxMB-i48ZjkRkAcqLtBplCSlxzBlsGiqO/exec";
+const LICKEY="calling_license_key";
+const DEVIDKEY="calling_device_id";
+function deviceId(){
+  let d=localStorage.getItem(DEVIDKEY);
+  if(!d){ d="DEV-"+Math.random().toString(36).slice(2,8).toUpperCase()+"-"+Date.now().toString(36).toUpperCase(); localStorage.setItem(DEVIDKEY,d); }
+  return d;
+}
+
+function showApp(){ const g=document.getElementById('licGate'); if(g) g.style.display='none'; }
+function showGate(msg){ const g=document.getElementById('licGate'); if(g) g.style.display='flex';
+  if(msg){const m=document.getElementById('licMsg'); if(m) m.textContent=msg;} }
+
+async function checkLicense(key){
+  if(!LICENSE_API || LICENSE_API.indexOf("PASTE_")===0){
+    // API set nahi hai -> demo/seller mode: allow (so seller can test)
+    return {ok:true, offlineNote:true};
+  }
+  try{
+    const r=await fetch(LICENSE_API+"?key="+encodeURIComponent(key)+"&dev="+encodeURIComponent(deviceId()),{method:"GET"});
+    const j=await r.json();
+    return j; // expected {ok:true} or {ok:false,reason:"..."}
+  }catch(e){
+    // network fail -> if previously activated, allow offline use
+    if(localStorage.getItem(LICKEY)===key) return {ok:true, offline:true};
+    return {ok:false, reason:"Internet nahi. Activate karne ke liye internet chahiye."};
+  }
+}
+
+async function activateLicense(){
+  const key=(document.getElementById('licInput').value||"").trim();
+  if(!key){ document.getElementById('licMsg').textContent="Key daalein."; return; }
+  document.getElementById('licBtn').textContent="Checking...";
+  const res=await checkLicense(key);
+  document.getElementById('licBtn').textContent="Activate";
+  if(res && res.ok){
+    localStorage.setItem(LICKEY,key);
+    showApp();
+    startApp();
+  } else {
+    document.getElementById('licMsg').textContent=(res&&res.reason)||"Galat ya band key.";
+  }
+}
+
+async function licenseInit(){
+  const saved=localStorage.getItem(LICKEY);
+  if(!saved){ showGate(""); return; }
+  // re-verify saved key in background
+  const res=await checkLicense(saved);
+  if(res && res.ok){ showApp(); startApp(); }
+  else { localStorage.removeItem(LICKEY); showGate((res&&res.reason)||"License band ho gayi hai."); }
+}
+
+let __appStarted=false;
+function startApp(){
+  if(__appStarted) return; __appStarted=true;
+  load();fillTmplLangDropdown();render();
+}
+
+licenseInit();
+</script>
+</body>
+</html>
