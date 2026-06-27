@@ -643,6 +643,13 @@ function startApp(){
 }
 
 licenseInit();
+
+// always show install button (Chrome signal optional)
+(function(){
+  function showInstallBtn(){ var b=document.getElementById('installBtn'); if(b) b.classList.add('show'); }
+  if(document.readyState!=='loading') showInstallBtn();
+  else document.addEventListener('DOMContentLoaded', showInstallBtn);
+})(); // ALWAYS_SHOW_INSTALL
 </script>
 </body>
 </html>
