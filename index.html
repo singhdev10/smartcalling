@@ -66,6 +66,8 @@
   .fakefile{background:transparent;color:var(--ink);border:1px dashed var(--line);border-radius:8px;padding:10px;font-weight:700;font-size:14px;cursor:pointer;}
 
   .filterbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+  .comboFilter{display:flex;gap:8px;margin-bottom:10px;}
+  .comboFilter select{flex:1;font-size:13px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface2);color:var(--ink);}
   .chip{background:var(--surface2);border:1px solid var(--line);border-radius:20px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);}
   .chip.on{background:var(--accent);color:#fff;border-color:var(--accent);}
 
@@ -221,6 +223,10 @@
   <button onclick="selectAllShown()">☑ Sab select</button>
   <button onclick="clearSel()">▢ Clear</button>
 </div>
+<div class="comboFilter">
+  <select id="langFilter" onchange="render()"><option value="">🌐 Sabhi bhasha</option></select>
+  <select id="stateFilter" onchange="render()"><option value="">📍 Sabhi state</option></select>
+</div>
 <div class="filterbar" id="filterbar"></div>
 <input class="search" id="search" placeholder="🔍 Naam ya number search..." oninput="render()">
 
@@ -247,7 +253,7 @@ const SEED_DATA=[];
 const LANGS=[["hi", "हिन्दी Hindi"], ["en", "English"], ["ta", "தமிழ் Tamil"], ["te", "తెలుగు Telugu"], ["kn", "ಕನ್ನಡ Kannada"], ["ml", "മലയാളം Malayalam"], ["mr", "मराठी Marathi"], ["pa", "ਪੰਜਾਬੀ Punjabi"], ["gu", "ગુજરાતી Gujarati"], ["bn", "বাংলা Bengali"], ["or", "ଓଡ଼ିଆ Odia"]];
 const DEFAULT_TEMPLATES={"hi": "नमस्ते {name} जी! हम अपनी सेवा के बारे में आपसे बात करना चाहते थे। कृपया हमें बताएं कि क्या आप अधिक जानकारी चाहेंगे।", "en": "Hello {name}! We wanted to tell you about our service. Please let us know if you'd like more details.", "ta": "வணக்கம் {name}! எங்கள் சேவை குறித்து உங்களிடம் பேச விரும்பினோம். மேலும் விவரங்கள் வேண்டுமா என்று எங்களுக்குத் தெரிவிக்கவும்.", "te": "నమస్కారం {name}! మా సేవ గురించి మీతో మాట్లాడాలనుకున్నాము. మరిన్ని వివరాలు కావాలంటే మాకు తెలియజేయండి.", "kn": "ನಮಸ್ಕಾರ {name}! ನಮ್ಮ ಸೇವೆಯ ಬಗ್ಗೆ ನಿಮ್ಮೊಂದಿಗೆ ಮಾತನಾಡಲು ಬಯಸಿದ್ದೆವು. ಹೆಚ್ಚಿನ ಮಾಹಿತಿ ಬೇಕಿದ್ದರೆ ತಿಳಿಸಿ.", "ml": "നമസ്കാരം {name}! ഞങ്ങളുടെ സേവനത്തെക്കുറിച്ച് നിങ്ങളോട് സംസാരിക്കാൻ ആഗ്രഹിച്ചു. കൂടുതൽ വിവരങ്ങൾ വേണമെങ്കിൽ അറിയിക്കുക.", "mr": "नमस्कार {name}! आमच्या सेवेबद्दल तुमच्याशी बोलायचे होते. अधिक माहिती हवी असल्यास आम्हाला कळवा.", "pa": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ {name}! ਅਸੀਂ ਆਪਣੀ ਸੇਵਾ ਬਾਰੇ ਤੁਹਾਡੇ ਨਾਲ ਗੱਲ ਕਰਨਾ ਚਾਹੁੰਦੇ ਸੀ। ਜੇ ਤੁਸੀਂ ਹੋਰ ਜਾਣਕਾਰੀ ਚਾਹੁੰਦੇ ਹੋ ਤਾਂ ਸਾਨੂੰ ਦੱਸੋ।", "gu": "નમસ્તે {name}! અમે અમારી સેવા વિશે તમારી સાથે વાત કરવા માગતા હતા. વધુ માહિતી જોઈતી હોય તો અમને જણાવો.", "bn": "নমস্কার {name}! আমরা আমাদের পরিষেবা সম্পর্কে আপনার সাথে কথা বলতে চেয়েছিলাম। আরও তথ্য চাইলে আমাদের জানান।", "or": "ନମସ୍କାର {name}! ଆମେ ଆମର ସେବା ବିଷୟରେ ଆପଣଙ୍କ ସହ କଥା ହେବାକୁ ଚାହୁଁଥିଲୁ। ଅଧିକ ସୂଚନା ଆବଶ୍ୟକ ହେଲେ ଆମକୁ ଜଣାନ୍ତୁ।"};
 const TMPLKEY="calling_templates_v1";
-const STATE_LANG={"maharashtra":"mr","tamil nadu":"ta","delhi":"hi","andhra pradesh":"te","karnataka":"kn","uttar pradesh":"hi","west bengal":"bn","gujarat":"gu","madhya pradesh":"hi","kerala":"ml","haryana":"hi","jharkhand":"hi","rajasthan":"hi","chhatisgarh":"hi","chhattisgarh":"hi","punjab":"pa","orissa":"or","odisha":"or","assam":"bn","uttaranchal":"hi","uttarakhand":"hi","bihar":"hi","jammu & kashmir":"hi","chandigarh":"pa","himachal pradesh":"hi","telangana":"te","goa":"mr"};
+const STATE_LANG={"maharashtra": "mr", "tamil nadu": "ta", "delhi": "hi", "andhra pradesh": "te", "karnataka": "kn", "uttar pradesh": "hi", "west bengal": "bn", "gujarat": "gu", "madhya pradesh": "hi", "kerala": "ml", "haryana": "hi", "jharkhand": "hi", "rajasthan": "hi", "chhatisgarh": "hi", "chhattisgarh": "hi", "punjab": "pa", "orissa": "or", "odisha": "or", "assam": "bn", "uttaranchal": "hi", "uttarakhand": "hi", "bihar": "hi", "jammu & kashmir": "hi", "chandigarh": "pa", "himachal pradesh": "hi", "telangana": "te", "goa": "mr", "nagaland": "en", "tripura": "bn", "arunachal pradesh": "en", "nagar haveli": "hi", "biratnagar": "en", "morang": "en", "bd": "en", "new delhi": "hi", "kochi": "ml", "thane": "mr", "dehradun": "hi", "bhilai": "hi", "korba": "hi", "jammu": "hi", "bhopal": "hi", "pune": "mr", "ghaziabad": "hi", "vishakapatnam": "te", "vadodara": "gu", "kolkata": "bn", "chennai": "ta", "shahjahanpur": "hi", "coimbatore": "ta", "durgapur": "bn", "hyderabad": "te", "nagpur": "mr", "mumbai": "mr", "kanpur": "hi", "gurgaon": "hi", "bangalore": "kn", "navi mumbai": "mr", "palakkad": "ml", "surat": "gu", "aurangabad": "mr", "gandhinagar": "gu", "bilaspur": "hi", "salem": "ta", "guwahati": "bn", "noida": "hi", "tiruchchirapalli": "ta", "dhaka": "en", "meerut": "hi", "solapur": "mr", "patiala": "pa", "ambala": "hi", "ranchi": "hi", "vapi": "gu", "faridabad": "hi", "warangal": "te", "ludhiana": "pa", "ranipet": "ta", "palakonda": "te", "indore": "hi", "kondagaon": "hi", "jaipur": "hi", "ahmedabad": "gu", "vijayawada": "te", "varanasi": "hi", "ujjain": "hi", "guna": "hi", "nashik": "mr", "bhubaneshwar": "or", "muzaffarnagar": "hi", "dhanbad": "hi", "secunderabad": "te", "tirunelveli": "ta", "gwalior": "hi", "dahod": "gu", "azamgarh": "hi", "lucknow": "hi", "rohtak": "hi", "kalyan west": "mr", "durgachak": "bn", "sullurupeta": "te", "pensioner": "ta", "ambasamudram": "ta", "bharuch": "gu", "mangalore": "kn", "tiruvalla": "ml", "agra": "hi", "howrah": "bn", "patna": "hi", "hosur": "ta", "kadur": "kn", "malda": "bn", "raebareli": "hi", "ponneri": "ta", "balasore": "or", "thanjavur": "mr", "phagwara": "pa", "jabalpur": "hi", "raipur": "hi", "rawatbhata": "hi", "trissur": "ml", "tirupati": "te", "panchkula": "hi", "dombivli": "mr", "dalhousie": "hi", "thiruvananthapuram": "ml", "shimla": "hi", "ambernath": "mr", "silvasa": "hi", "guntur": "te", "allahabad": "hi", "maudaha": "hi", "siliguri": "bn", "rajamundry": "te", "rajkot": "gu", "tiruppur": "bn", "mirzapur": "hi", "valsad": "gu", "nanded": "mr", "eluru": "te", "erode": "ta", "nellore": "te", "kurnool": "te", "pali marwar": "hi", "dombivli west": "mr", "kozhikode": "ml", "berhampore": "bn", "sultanpur": "hi", "sidhi": "hi", "kovilpatti": "ta", "jalandhar": "pa", "burdwan": "bn", "kota": "hi", "bareilly": "hi", "mountabu": "hi", "dimapur": "en", "bhagalpur": "hi", "cuttack": "or", "madhubani": "hi", "damanjodi": "or", "satna": "hi", "nagaon": "bn", "mau": "hi", "rajendranagar": "hi", "bellary": "kn", "ankleshwar": "gu", "jamshedpur": "hi", "aligarh": "hi", "liluah": "bn", "bhadrakali": "bn", "dmoh": "hi", "neyveli": "ta", "udhamsingh nagar": "hi", "penugonda": "te", "dhanpuri": "hi", "barnala": "pa", "sahibabad": "hi", "namakkal": "ta", "amravati": "mr", "cochin": "ml", "bokaro": "hi", "kottayam": "ml", "rupnarayanpur": "bn", "davangere": "kn", "jodhpur": "hi", "aluva": "ml", "dharwad": "kn", "kasaragod": "ml", "chidambaram": "ta", "banhatti": "kn", "haldwani": "hi", "bongaigaon": "bn", "gudalur": "ta", "narasaraopet": "te", "midnapore": "bn", "janak puri": "hi", "tanuku": "te", "jharsuguda": "or", "almora": "hi", "ratlam": "hi", "amritsar": "pa", "mysore": "kn", "ballabgarh": "hi", "agartala": "bn", "rewari": "hi", "ghandinagar": "gu", "suratgarh": "hi", "talwara": "pa", "karnal": "hi", "tornagallu": "kn", "faizabad": "hi"};
 function langForState(s){if(!s)return"";return STATE_LANG[(""+s).trim().toLowerCase()]||"";}
 const DKEY="calling_default_msg";
 const TKEY="calling_daily_target";
@@ -458,6 +464,21 @@ function renderStats(){
     <div class="stat"><b>${c.later}</b><span>Baad mein</span></div>
     <div class="stat"><b>${c.int}</b><span>Interested</span></div>`;
 }
+function fillComboFilters(){
+  const langSel=document.getElementById('langFilter');
+  const stSel=document.getElementById('stateFilter');
+  if(!langSel||!stSel) return;
+  // languages present in data
+  const langsIn=[...new Set(data.map(d=>d.lang).filter(Boolean))];
+  const curLang=langSel.value;
+  langSel.innerHTML='<option value="">🌐 Sabhi bhasha</option>'+
+    langsIn.map(code=>`<option value="${code}" ${code===curLang?'selected':''}>${langName(code)}</option>`).join('');
+  // states present in data
+  const statesIn=[...new Set(data.map(d=>d.state).filter(Boolean))].sort();
+  const curSt=stSel.value;
+  stSel.innerHTML='<option value="">📍 Sabhi state</option>'+
+    statesIn.map(s=>`<option value="${esc(s)}" ${s===curSt?'selected':''}>${esc(s)}</option>`).join('');
+}
 function renderFilters(){
   const dueN=data.filter(isDue).length;
   const opts=[{k:"all",label:"Sab"},{k:"due",label:"Due "+(dueN?`(${dueN})`:"")}].concat(STATUSES.map(s=>({k:s.k,label:s.label})));
@@ -500,7 +521,7 @@ function bulkWhatsApp(){
   setTimeout(()=>{ alert(n+" WhatsApp tab khul gaye. Ab har tab me SEND dabao."); }, idxs.length*1200+300);
 }
 function render(){
-  renderTarget();renderDuebar();renderStats();renderFilters();
+  renderTarget();renderDuebar();renderStats();renderFilters();fillComboFilters();
   const q=document.getElementById('search').value.trim().toLowerCase();
   const list=document.getElementById('list');
   document.getElementById('count').textContent=data.length+" customers";
@@ -509,9 +530,13 @@ function render(){
   // due first ordering
   arr.sort((a,b)=>(isDue(b.d)?1:0)-(isDue(a.d)?1:0));
 
+  const fLang=(document.getElementById('langFilter')||{}).value||"";
+  const fState=(document.getElementById('stateFilter')||{}).value||"";
   const shown=arr.filter(({d})=>{
     if(filter==="due"){if(!isDue(d))return false;}
     else if(filter!=="all" && d.status!==filter) return false;
+    if(fLang && d.lang!==fLang) return false;
+    if(fState && d.state!==fState) return false;
     if(q && !(d.name.toLowerCase().includes(q)||d.num.includes(q))) return false;
     return true;
   });
