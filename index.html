@@ -309,7 +309,7 @@ summary{cursor:pointer;font-size:13px;color:var(--brand2);font-weight:700;paddin
   <button class="btn-ghost" onclick="exportCSV()">⬇ Export CSV</button>
   <button class="btn-ghost" onclick="clearAll()">🗑 Clear all</button>
 </div>
-<div class="hint">Excel ya CSV daalein. Column: 1=Naam, 2=Number, 3=Message(optional), 4=State(optional). Header row optional. State se bhasha apne aap set hogi.</div>
+<div class="hint">Apni Excel ya CSV file daalein. System khud samajh lega — naam, number, state. Email apne aap chhod dega. Column kisi bhi order me ho, koi dikkat nahi.</div>
 
 <div class="bulkbar" id="bulkbar">
   <b id="bulkcount">0 selected</b>
@@ -479,24 +479,94 @@ function importFile(e){
   else { importCSVfile(file); }
   e.target.value="";
 }
+// ===== SMART COLUMN DETECTION =====
+// Har column ko dekh ke khud pehchanta hai: Number / Email(skip) / State / Naam
+// Chahe column kisi bhi order me hon.
+function looksLikeNumber(v){
+  const digits=(""+v).replace(/\D/g,"");
+  return digits.length>=10 && digits.length<=13;
+}
+function looksLikeEmail(v){ return /@/.test(""+v); }
+function looksLikeName(v){
+  const s=(""+v).trim();
+  // has letters, length>2, not purely digits
+  return s.length>2 && /[a-zA-Z\u0900-\u097F]/.test(s) && !/^\d+$/.test(s);
+}
+function looksLikeSerial(v){
+  const s=(""+v).trim();
+  return /^\d{1,4}$/.test(s); // 1-4 digit plain number = serial, not phone
+}
+function looksLikeState(v){
+  const s=(""+v).trim().toLowerCase();
+  if(!s) return false;
+  return STATE_LANG.hasOwnProperty(s);
+}
+function detectColumns(rows){
+  // sample up to 30 non-empty rows
+  const sample=rows.slice(0,30);
+  const colCount=Math.max(...sample.map(r=>r.length));
+  const score=[]; // per column: {num,email,state,text}
+  for(let c=0;c<colCount;c++){
+    let num=0,email=0,state=0,text=0,name=0,serial=0,nonEmpty=0;
+    sample.forEach(r=>{
+      const v=(r[c]==null?"":(""+r[c])).trim();
+      if(!v) return;
+      nonEmpty++;
+      if(looksLikeEmail(v)) email++;
+      else if(looksLikeNumber(v)) num++;
+      else if(looksLikeSerial(v)) serial++;
+      else if(looksLikeState(v)) { state++; text++; }
+      else if(looksLikeName(v)) { name++; text++; }
+      else text++;
+    });
+    score.push({c,num,email,state,text,name,serial,nonEmpty});
+  }
+  // pick best column for each role
+  const numberCol = score.slice().sort((a,b)=>b.num-a.num)[0];
+  const emailCols = score.filter(s=>s.email>s.nonEmpty*0.5).map(s=>s.c); // mostly-email cols => skip
+  const stateCol  = score.slice().sort((a,b)=>b.state-a.state)[0];
+  // name col = the text-heavy column that is NOT number/email/state
+  const used=new Set();
+  if(numberCol && numberCol.num>0) used.add(numberCol.c);
+  emailCols.forEach(c=>used.add(c));
+  if(stateCol && stateCol.state>0) used.add(stateCol.c);
+  // mark state col used so name doesn't grab it
+  let nameCol=score.filter(s=>!used.has(s.c)).sort((a,b)=>(b.name-a.name)||(b.text-a.text))[0];
+  if(!nameCol) nameCol=score.filter(s=>s.c!==(numberCol&&numberCol.c)).sort((a,b)=>(b.name-a.name))[0];
+  return {
+    name: nameCol?nameCol.c:0,
+    num: (numberCol&&numberCol.num>0)?numberCol.c:1,
+    state: (stateCol&&stateCol.state>0)?stateCol.c:-1,
+    emails: emailCols
+  };
+}
 function addRows(arr){
-  let added=0;
+  // remove fully-empty rows
+  arr=arr.filter(r=>r && r.some(c=>(""+(c==null?"":c)).trim()!==""));
+  if(!arr.length){alert("File khaali hai.");return;}
+  const map=detectColumns(arr);
+  let added=0, skipped=0;
   arr.forEach(c=>{
-    const nm=(c[0]||"").toString().trim();
-    const num=cleanNum((c[1]||"").toString());
-    const msg=(c[2]||"").toString().trim();
-    const state=(c[3]||"").toString().trim();
+    const nm=(c[map.name]==null?"":(""+c[map.name])).trim();
+    const num=cleanNum((c[map.num]==null?"":(""+c[map.num])).toString());
+    const state=map.state>=0?((c[map.state]==null?"":(""+c[map.state])).trim()):"";
+    // message: NEVER use email column. Leave blank (templates bhasha se bhejte hain).
+    const msg="";
     if(nm&&num){
       const lang=langForState(state)|| "hi";
       data.push({name:nm,num,msg,status:"new",followup:"",updated:"",state,lang});
       added++;
-    }
+    } else skipped++;
   });
-  save();render();alert(added+" customers import ho gaye.");
+  save();render();
+  let info=added+" customers import ho gaye.";
+  if(map.emails.length) info+="\n(Email column apne aap chhod diya — message me nahi gaya.)";
+  if(skipped>0) info+="\n"+skipped+" rows chhute (naam ya number nahi mila).";
+  alert(info);
 }
 function isHeader(row){
   const j=(row.join? row.join(" ") : "").toLowerCase();
-  return /name|naam|number|mobile|phone/.test(j);
+  return /name|naam|number|mobile|phone|email|city|state|source/.test(j);
 }
 function importCSVfile(file){
   const r=new FileReader();
