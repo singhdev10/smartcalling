@@ -235,7 +235,8 @@ summary{cursor:pointer;font-size:13px;color:var(--brand2);font-weight:700;paddin
     <p style="color:#9aa6c4;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-bottom:22px;">Premium Calling Suite</p>
     <div style="background:rgba(22,28,46,.7);backdrop-filter:blur(16px);border:1px solid rgba(120,140,190,.2);border-radius:20px;padding:22px;box-shadow:0 16px 44px rgba(0,0,0,.5);">
       <p style="color:#eef2fb;font-size:14px;font-weight:600;margin-bottom:14px;">🔐 License key se activate karein</p>
-      <input id="licInput" placeholder="XXXX-XXXX-XXXX" style="width:100%;padding:14px;border:1px solid rgba(120,140,190,.25);border-radius:12px;background:#0c1020;color:#eef2fb;font-size:16px;text-align:center;letter-spacing:2px;margin-bottom:12px;font-family:'Sora';">
+      <input id="licInput" placeholder="XXXX-XXXX-XXXX" style="width:100%;padding:14px;border:1px solid rgba(120,140,190,.25);border-radius:12px;background:#0c1020;color:#eef2fb;font-size:16px;text-align:center;letter-spacing:2px;margin-bottom:10px;font-family:'Sora';">
+      <input id="devNameInput" placeholder="Is device ka naam (jaise Ramesh phone)" style="width:100%;padding:13px;border:1px solid rgba(120,140,190,.25);border-radius:12px;background:#0c1020;color:#eef2fb;font-size:14px;text-align:center;margin-bottom:12px;">
       <button id="licBtn" onclick="activateLicense()" style="width:100%;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,#4f7cff,#2348c8);color:#fff;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 8px 22px rgba(79,124,255,.4);">Activate Now</button>
       <p id="licMsg" style="color:#ff8089;font-size:12px;margin-top:12px;min-height:16px;"></p>
     </div>
@@ -290,6 +291,22 @@ summary{cursor:pointer;font-size:13px;color:var(--brand2);font-weight:700;paddin
   <div style="height:8px"></div>
   <button class="btn-add" onclick="addOne()">+ Add customer</button>
 </div>
+
+<details>
+  <summary>💳 Bank accounts / UPI (payment bhejne ke liye)</summary>
+  <div class="panel" style="margin-top:10px">
+    <label class="sub">Apne bank account / UPI add karein. Customer ko bhejte waqt chun sakte ho kaun sa bhejna hai.</label>
+    <div id="bankList"></div>
+    <div style="border-top:1px solid var(--line);margin:12px 0;padding-top:12px;">
+      <input id="bkName" placeholder="Bank ka naam (jaise SBI, PhonePe)" style="margin-bottom:7px">
+      <input id="bkAcc" placeholder="Account number" style="margin-bottom:7px" inputmode="numeric">
+      <input id="bkIfsc" placeholder="IFSC code" style="margin-bottom:7px">
+      <input id="bkUpi" placeholder="UPI ID (jaise name@paytm)" style="margin-bottom:7px">
+      <input id="bkHolder" placeholder="Account holder ka naam" style="margin-bottom:7px">
+      <button class="btn-add" onclick="addBank()">+ Account add karein</button>
+    </div>
+  </div>
+</details>
 
 <details>
   <summary>📝 Language message templates (edit karein)</summary>
@@ -353,6 +370,55 @@ const SEED_DATA=[];
 const LANGS=[["hi", "हिन्दी Hindi"], ["en", "English"], ["ta", "தமிழ் Tamil"], ["te", "తెలుగు Telugu"], ["kn", "ಕನ್ನಡ Kannada"], ["ml", "മലയാളം Malayalam"], ["mr", "मराठी Marathi"], ["pa", "ਪੰਜਾਬੀ Punjabi"], ["gu", "ગુજરાતી Gujarati"], ["bn", "বাংলা Bengali"], ["or", "ଓଡ଼ିଆ Odia"]];
 const DEFAULT_TEMPLATES={"hi": "नमस्ते {name} जी! हम अपनी सेवा के बारे में आपसे बात करना चाहते थे। कृपया हमें बताएं कि क्या आप अधिक जानकारी चाहेंगे।", "en": "Hello {name}! We wanted to tell you about our service. Please let us know if you'd like more details.", "ta": "வணக்கம் {name}! எங்கள் சேவை குறித்து உங்களிடம் பேச விரும்பினோம். மேலும் விவரங்கள் வேண்டுமா என்று எங்களுக்குத் தெரிவிக்கவும்.", "te": "నమస్కారం {name}! మా సేవ గురించి మీతో మాట్లాడాలనుకున్నాము. మరిన్ని వివరాలు కావాలంటే మాకు తెలియజేయండి.", "kn": "ನಮಸ್ಕಾರ {name}! ನಮ್ಮ ಸೇವೆಯ ಬಗ್ಗೆ ನಿಮ್ಮೊಂದಿಗೆ ಮಾತನಾಡಲು ಬಯಸಿದ್ದೆವು. ಹೆಚ್ಚಿನ ಮಾಹಿತಿ ಬೇಕಿದ್ದರೆ ತಿಳಿಸಿ.", "ml": "നമസ്കാരം {name}! ഞങ്ങളുടെ സേവനത്തെക്കുറിച്ച് നിങ്ങളോട് സംസാരിക്കാൻ ആഗ്രഹിച്ചു. കൂടുതൽ വിവരങ്ങൾ വേണമെങ്കിൽ അറിയിക്കുക.", "mr": "नमस्कार {name}! आमच्या सेवेबद्दल तुमच्याशी बोलायचे होते. अधिक माहिती हवी असल्यास आम्हाला कळवा.", "pa": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ {name}! ਅਸੀਂ ਆਪਣੀ ਸੇਵਾ ਬਾਰੇ ਤੁਹਾਡੇ ਨਾਲ ਗੱਲ ਕਰਨਾ ਚਾਹੁੰਦੇ ਸੀ। ਜੇ ਤੁਸੀਂ ਹੋਰ ਜਾਣਕਾਰੀ ਚਾਹੁੰਦੇ ਹੋ ਤਾਂ ਸਾਨੂੰ ਦੱਸੋ।", "gu": "નમસ્તે {name}! અમે અમારી સેવા વિશે તમારી સાથે વાત કરવા માગતા હતા. વધુ માહિતી જોઈતી હોય તો અમને જણાવો.", "bn": "নমস্কার {name}! আমরা আমাদের পরিষেবা সম্পর্কে আপনার সাথে কথা বলতে চেয়েছিলাম। আরও তথ্য চাইলে আমাদের জানান।", "or": "ନମସ୍କାର {name}! ଆମେ ଆମର ସେବା ବିଷୟରେ ଆପଣଙ୍କ ସହ କଥା ହେବାକୁ ଚାହୁଁଥିଲୁ। ଅଧିକ ସୂଚନା ଆବଶ୍ୟକ ହେଲେ ଆମକୁ ଜଣାନ୍ତୁ।"};
 const TMPLKEY="calling_templates_v1";
+const BANKKEY="calling_banks_v1";
+function getBanks(){ try{ return JSON.parse(localStorage.getItem(BANKKEY))||[]; }catch(e){ return []; } }
+function saveBanks(arr){ localStorage.setItem(BANKKEY, JSON.stringify(arr)); }
+function addBank(){
+  const name=(document.getElementById('bkName').value||"").trim();
+  const acc=(document.getElementById('bkAcc').value||"").trim();
+  const ifsc=(document.getElementById('bkIfsc').value||"").trim();
+  const upi=(document.getElementById('bkUpi').value||"").trim();
+  const holder=(document.getElementById('bkHolder').value||"").trim();
+  if(!name){ alert("Bank ka naam daalein."); return; }
+  if(!acc && !upi){ alert("Account number ya UPI me se ek to daalein."); return; }
+  const banks=getBanks();
+  banks.push({name,acc,ifsc,upi,holder});
+  saveBanks(banks);
+  document.getElementById('bkName').value="";
+  document.getElementById('bkAcc').value="";
+  document.getElementById('bkIfsc').value="";
+  document.getElementById('bkUpi').value="";
+  document.getElementById('bkHolder').value="";
+  renderBanks();
+  alert(name+" account add ho gaya.");
+}
+function delBank(idx){
+  if(!confirm("Yeh account hatayein?")) return;
+  const banks=getBanks(); banks.splice(idx,1); saveBanks(banks); renderBanks();
+}
+function renderBanks(){
+  const el=document.getElementById('bankList'); if(!el) return;
+  const banks=getBanks();
+  if(!banks.length){ el.innerHTML='<div style="font-size:12px;color:var(--faint);padding:6px 0;">Abhi koi account nahi. Niche add karein.</div>'; return; }
+  el.innerHTML=banks.map((b,i)=>`<div style="background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <b style="font-size:14px;color:var(--ink);">${esc(b.name)}</b>
+      <button onclick="delBank(${i})" style="margin-left:auto;background:transparent;border:1px solid var(--del);color:var(--del);border-radius:8px;padding:5px 10px;font-size:12px;">Hatao</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:5px;line-height:1.6;">
+      ${b.acc?`A/c: ${esc(b.acc)}<br>`:''}${b.ifsc?`IFSC: ${esc(b.ifsc)}<br>`:''}${b.upi?`UPI: ${esc(b.upi)}<br>`:''}${b.holder?`Name: ${esc(b.holder)}`:''}
+    </div>
+  </div>`).join("");
+}
+function bankMsgText(b){
+  let lines=["*Payment Details*"];
+  lines.push("Bank: "+b.name);
+  if(b.holder) lines.push("Name: "+b.holder);
+  if(b.acc) lines.push("A/c No: "+b.acc);
+  if(b.ifsc) lines.push("IFSC: "+b.ifsc);
+  if(b.upi) lines.push("UPI: "+b.upi);
+  return lines.join("\n");
+}
 const STATE_LANG={"maharashtra": "mr", "tamil nadu": "ta", "delhi": "hi", "andhra pradesh": "te", "karnataka": "kn", "uttar pradesh": "hi", "west bengal": "bn", "gujarat": "gu", "madhya pradesh": "hi", "kerala": "ml", "haryana": "hi", "jharkhand": "hi", "rajasthan": "hi", "chhatisgarh": "hi", "chhattisgarh": "hi", "punjab": "pa", "orissa": "or", "odisha": "or", "assam": "bn", "uttaranchal": "hi", "uttarakhand": "hi", "bihar": "hi", "jammu & kashmir": "hi", "chandigarh": "pa", "himachal pradesh": "hi", "telangana": "te", "goa": "mr", "nagaland": "en", "tripura": "bn", "arunachal pradesh": "en", "nagar haveli": "hi", "biratnagar": "en", "morang": "en", "bd": "en", "new delhi": "hi", "kochi": "ml", "thane": "mr", "dehradun": "hi", "bhilai": "hi", "korba": "hi", "jammu": "hi", "bhopal": "hi", "pune": "mr", "ghaziabad": "hi", "vishakapatnam": "te", "vadodara": "gu", "kolkata": "bn", "chennai": "ta", "shahjahanpur": "hi", "coimbatore": "ta", "durgapur": "bn", "hyderabad": "te", "nagpur": "mr", "mumbai": "mr", "kanpur": "hi", "gurgaon": "hi", "bangalore": "kn", "navi mumbai": "mr", "palakkad": "ml", "surat": "gu", "aurangabad": "mr", "gandhinagar": "gu", "bilaspur": "hi", "salem": "ta", "guwahati": "bn", "noida": "hi", "tiruchchirapalli": "ta", "dhaka": "en", "meerut": "hi", "solapur": "mr", "patiala": "pa", "ambala": "hi", "ranchi": "hi", "vapi": "gu", "faridabad": "hi", "warangal": "te", "ludhiana": "pa", "ranipet": "ta", "palakonda": "te", "indore": "hi", "kondagaon": "hi", "jaipur": "hi", "ahmedabad": "gu", "vijayawada": "te", "varanasi": "hi", "ujjain": "hi", "guna": "hi", "nashik": "mr", "bhubaneshwar": "or", "muzaffarnagar": "hi", "dhanbad": "hi", "secunderabad": "te", "tirunelveli": "ta", "gwalior": "hi", "dahod": "gu", "azamgarh": "hi", "lucknow": "hi", "rohtak": "hi", "kalyan west": "mr", "durgachak": "bn", "sullurupeta": "te", "pensioner": "ta", "ambasamudram": "ta", "bharuch": "gu", "mangalore": "kn", "tiruvalla": "ml", "agra": "hi", "howrah": "bn", "patna": "hi", "hosur": "ta", "kadur": "kn", "malda": "bn", "raebareli": "hi", "ponneri": "ta", "balasore": "or", "thanjavur": "mr", "phagwara": "pa", "jabalpur": "hi", "raipur": "hi", "rawatbhata": "hi", "trissur": "ml", "tirupati": "te", "panchkula": "hi", "dombivli": "mr", "dalhousie": "hi", "thiruvananthapuram": "ml", "shimla": "hi", "ambernath": "mr", "silvasa": "hi", "guntur": "te", "allahabad": "hi", "maudaha": "hi", "siliguri": "bn", "rajamundry": "te", "rajkot": "gu", "tiruppur": "bn", "mirzapur": "hi", "valsad": "gu", "nanded": "mr", "eluru": "te", "erode": "ta", "nellore": "te", "kurnool": "te", "pali marwar": "hi", "dombivli west": "mr", "kozhikode": "ml", "berhampore": "bn", "sultanpur": "hi", "sidhi": "hi", "kovilpatti": "ta", "jalandhar": "pa", "burdwan": "bn", "kota": "hi", "bareilly": "hi", "mountabu": "hi", "dimapur": "en", "bhagalpur": "hi", "cuttack": "or", "madhubani": "hi", "damanjodi": "or", "satna": "hi", "nagaon": "bn", "mau": "hi", "rajendranagar": "hi", "bellary": "kn", "ankleshwar": "gu", "jamshedpur": "hi", "aligarh": "hi", "liluah": "bn", "bhadrakali": "bn", "dmoh": "hi", "neyveli": "ta", "udhamsingh nagar": "hi", "penugonda": "te", "dhanpuri": "hi", "barnala": "pa", "sahibabad": "hi", "namakkal": "ta", "amravati": "mr", "cochin": "ml", "bokaro": "hi", "kottayam": "ml", "rupnarayanpur": "bn", "davangere": "kn", "jodhpur": "hi", "aluva": "ml", "dharwad": "kn", "kasaragod": "ml", "chidambaram": "ta", "banhatti": "kn", "haldwani": "hi", "bongaigaon": "bn", "gudalur": "ta", "narasaraopet": "te", "midnapore": "bn", "janak puri": "hi", "tanuku": "te", "jharsuguda": "or", "almora": "hi", "ratlam": "hi", "amritsar": "pa", "mysore": "kn", "ballabgarh": "hi", "agartala": "bn", "rewari": "hi", "ghandinagar": "gu", "suratgarh": "hi", "talwara": "pa", "karnal": "hi", "tornagallu": "kn", "faizabad": "hi"};
 function langForState(s){if(!s)return"";return STATE_LANG[(""+s).trim().toLowerCase()]||"";}
 const DKEY="calling_default_msg";
@@ -756,6 +822,7 @@ function render(){
         <a class="a-sms" href="sms:${tel}?body=${msg}">✉️ SMS</a>
         <button class="a-del" onclick="del(${i})">Delete</button>
       </div>
+      <button onclick="openBankSend(${i})" style="width:100%;margin-top:8px;padding:11px;border:1px solid var(--line2);border-radius:12px;background:var(--glass2);color:var(--ink);font-weight:700;font-size:13px;cursor:pointer;">💳 Bank / UPI bhejo</button>
       <div class="statusrow">
         ${STATUSES.map(s=>`<button class="${d.status===s.k?'sel':''}" onclick="setStatus(${i},'${s.k}')">${s.label}</button>`).join("")}
       </div>
@@ -797,11 +864,13 @@ if('serviceWorker' in navigator){
 const LICENSE_API="https://script.google.com/macros/s/AKfycbxvDj01LPYrhG3NvXMnp_obviPAlCxrMecfxMB-i48ZjkRkAcqLtBplCSlxzBlsGiqO/exec";
 const LICKEY="calling_license_key";
 const DEVIDKEY="calling_device_id";
+const DEVNAMEKEY="calling_device_name";
 function deviceId(){
   let d=localStorage.getItem(DEVIDKEY);
   if(!d){ d="DEV-"+Math.random().toString(36).slice(2,8).toUpperCase()+"-"+Date.now().toString(36).toUpperCase(); localStorage.setItem(DEVIDKEY,d); }
   return d;
 }
+function deviceName(){ return localStorage.getItem(DEVNAMEKEY)||""; }
 
 function showApp(){ const g=document.getElementById('licGate'); if(g) g.style.display='none'; }
 function showGate(msg){ const g=document.getElementById('licGate'); if(g) g.style.display='flex';
@@ -813,7 +882,7 @@ async function checkLicense(key){
     return {ok:true, offlineNote:true};
   }
   try{
-    const r=await fetch(LICENSE_API+"?key="+encodeURIComponent(key)+"&dev="+encodeURIComponent(deviceId()),{method:"GET"});
+    const r=await fetch(LICENSE_API+"?key="+encodeURIComponent(key)+"&dev="+encodeURIComponent(deviceId())+"&name="+encodeURIComponent(deviceName()),{method:"GET"});
     const j=await r.json();
     return j; // expected {ok:true} or {ok:false,reason:"..."}
   }catch(e){
@@ -826,6 +895,8 @@ async function checkLicense(key){
 async function activateLicense(){
   const key=(document.getElementById('licInput').value||"").trim();
   if(!key){ document.getElementById('licMsg').textContent="Key daalein."; return; }
+  const dn=(document.getElementById('devNameInput').value||"").trim();
+  if(dn) localStorage.setItem(DEVNAMEKEY, dn);
   document.getElementById('licBtn').textContent="Checking...";
   const res=await checkLicense(key);
   document.getElementById('licBtn').textContent="Activate";
@@ -850,7 +921,7 @@ async function licenseInit(){
 let __appStarted=false;
 function startApp(){
   if(__appStarted) return; __appStarted=true;
-  load();fillTmplLangDropdown();render();
+  load();fillTmplLangDropdown();renderBanks();render();
 }
 
 licenseInit();
@@ -1036,6 +1107,44 @@ function scFinish(){
       <p>⭐ ${int} interested &nbsp; ✅ ${done} done</p>
       <button onclick="smartClose()" style="margin-top:24px;padding:15px 40px;border:none;border-radius:14px;background:linear-gradient(135deg,#4f7cff,#2348c8);color:#fff;font-size:16px;font-weight:800;cursor:pointer;">Wapas list pe</button>
     </div>`;
+}
+</script>
+
+
+<!-- Bank send chooser -->
+<div id="bankDlg" class="dlg">
+  <div class="box">
+    <h3>💳 Kaun sa account bhejna hai?</h3>
+    <div id="bankDlgList"></div>
+    <div class="drow" style="margin-top:10px">
+      <button class="btn-ghost" onclick="closeBankSend()">Cancel</button>
+    </div>
+  </div>
+</div>
+<script>
+let bankSendIdx=null;
+function openBankSend(i){
+  const banks=getBanks();
+  if(!banks.length){ alert("Pehle koi bank account add karein (upar '💳 Bank accounts' me)."); return; }
+  bankSendIdx=i;
+  const d=data[i];
+  document.getElementById('bankDlgList').innerHTML=banks.map((b,bi)=>`
+    <button onclick="sendBank(${bi})" style="width:100%;text-align:left;margin-bottom:8px;padding:13px;border:1px solid var(--line2);border-radius:12px;background:var(--bg2);color:var(--ink);cursor:pointer;">
+      <b style="font-size:14px;">${esc(b.name)}</b>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px;">${b.acc?('A/c '+esc(b.acc)+'  '):''}${b.upi?('UPI '+esc(b.upi)):''}</div>
+    </button>`).join("");
+  document.getElementById('bankDlg').classList.add('show');
+}
+function closeBankSend(){ document.getElementById('bankDlg').classList.remove('show'); bankSendIdx=null; }
+function sendBank(bi){
+  const banks=getBanks();
+  const b=banks[bi];
+  if(!b || bankSendIdx==null) return;
+  const d=data[bankSendIdx];
+  const wa=waNum(d.num);
+  const txt=encodeURIComponent(bankMsgText(b));
+  closeBankSend();
+  window.open("https://wa.me/"+wa+"?text="+txt, "_blank");
 }
 </script>
 
