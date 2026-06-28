@@ -255,7 +255,7 @@ summary{cursor:pointer;font-size:13px;color:var(--brand2);font-weight:700;paddin
     <b>DialFlow</b>
     <span id="custCount">0 contacts</span>
   </div>
-  <div class="live"><span class="dot"></span> LIVE · v1.1</div>
+  <div class="live"><span class="dot"></span> LIVE</div>
 </div>
 
 <div class="wrap">
@@ -346,8 +346,10 @@ summary{cursor:pointer;font-size:13px;color:var(--brand2);font-weight:700;paddin
   <select id="langFilter" onchange="showLimit=60;renderList()"><option value="">🌐 Sabhi bhasha</option></select>
   <select id="stateFilter" onchange="showLimit=60;renderList()"><option value="">📍 Sabhi state</option></select>
 </div>
+<button onclick="startWork()" style="width:100%;margin-bottom:12px;padding:14px 18px;border:1px solid rgba(79,124,255,.4);border-radius:18px;background:rgba(79,124,255,.1);color:#eef2fb;cursor:pointer;display:flex;align-items:center;gap:14px;"><span style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#4f7cff,#2348c8);display:grid;place-items:center;font-size:24px;flex:none;box-shadow:0 6px 16px rgba(79,124,255,.5);">⚡</span><span style="text-align:left;"><b style="font-family:'Sora';font-size:17px;font-weight:800;display:block;">Turbo Calling</b><span style="font-size:12px;color:#9aa6c4;">Ek-ek customer, bina ruke</span></span><span style="margin-left:auto;font-size:20px;color:#9db4ff;">→</span></button>
 <div class="filterbar" id="filterbar"></div>
 <input class="search" id="search" placeholder="🔍 Naam ya number search..." oninput="showLimit=60;renderList()">
+
 
 <div id="list"></div>
 
@@ -1076,6 +1078,147 @@ function sendBank(bi){
   const txt=encodeURIComponent(bankMsgText(b));
   closeBankSend();
   window.open("https://wa.me/"+wa+"?text="+txt, "_blank");
+}
+</script>
+
+
+<!-- WORK MODE: full screen, ek customer, call+wa+bank, status do -> agla -->
+
+
+
+<!-- ===== WORK MODE (full screen, ek-ek customer) ===== -->
+<div id="workOv" style="display:none;position:fixed;inset:0;z-index:9997;background:linear-gradient(180deg,#080b14,#0a0e1c 60%,#080b14);overflow-y:auto;">
+  <div style="max-width:480px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;padding:18px 20px 28px;">
+    <!-- top bar -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+      <button onclick="closeWork()" style="background:rgba(120,140,190,.15);border:1px solid rgba(120,140,190,.25);color:#eef2fb;border-radius:12px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;">✕ Band</button>
+      <div id="workProg" style="margin-left:auto;font-size:13px;color:#9aa6c4;font-weight:700;"></div>
+    </div>
+    <!-- progress bar -->
+    <div style="height:6px;background:rgba(120,140,190,.15);border-radius:6px;overflow:hidden;margin-bottom:22px;">
+      <div id="workProgBar" style="height:100%;width:0;background:linear-gradient(90deg,#4f7cff,#1fd18b);transition:width .4s;"></div>
+    </div>
+    <!-- customer card -->
+    <div id="workCard" style="flex:1;display:flex;flex-direction:column;justify-content:center;"></div>
+  </div>
+</div>
+
+<script>
+let workQueue=[];   // indices baaki hain
+let workIdx=null;   // current data index
+let workDone=0;     // kitne niptaye
+let workTotal=0;
+
+function startWork(){
+  // jo "pending/new" + due hain unhe lo (jo abhi kaam baaki hai)
+  // filter/lang/state jo laga ho, usi ke hisaab se queue
+  const fl=(document.getElementById('langFilter')||{}).value||"";
+  const fs=(document.getElementById('stateFilter')||{}).value||"";
+  workQueue=[];
+  data.forEach((d,i)=>{
+    if(fl && d.lang!==fl) return;
+    if(fs && (d.state||"")!==fs) return;
+    if(filter==='done' && d.status!=='done') return;
+    if(filter==='int' && d.status!=='int') return;
+    // Work mode: jo abhi nipte nahi (pending, nahi utha, baad mein) unhe priority
+    workQueue.push(i);
+  });
+  if(!workQueue.length){ alert("Koi customer nahi mila is filter me."); return; }
+  // pending/baad-mein pehle, done/notint baad me
+  workQueue.sort((a,b)=>{
+    const rank=s=>({'new':0,'no':1,'later':0,'int':2,'notint':3,'done':4}[s]??0);
+    return rank(data[a].status)-rank(data[b].status);
+  });
+  workTotal=workQueue.length; workDone=0;
+  document.getElementById('workOv').style.display='block';
+  document.body.style.overflow='hidden';
+  nextWork(true);
+}
+function closeWork(){
+  document.getElementById('workOv').style.display='none';
+  document.body.style.overflow='';
+  render(); // list refresh
+}
+function nextWork(first){
+  if(!first) workDone++;
+  if(!workQueue.length){ finishWork(); return; }
+  workIdx=workQueue.shift();
+  drawWork();
+}
+function finishWork(){
+  document.getElementById('workCard').innerHTML=`
+    <div style="text-align:center;padding:40px 10px;">
+      <div style="font-size:64px;margin-bottom:16px;">🎉</div>
+      <div style="font-family:'Sora';font-size:26px;font-weight:800;color:#eef2fb;margin-bottom:8px;">Sab nipta diya!</div>
+      <div style="font-size:15px;color:#9aa6c4;margin-bottom:24px;">${workDone} customers ho gaye. Shabaash!</div>
+      <button onclick="closeWork()" style="padding:14px 32px;border:none;border-radius:14px;background:linear-gradient(135deg,#4f7cff,#2348c8);color:#fff;font-size:15px;font-weight:800;cursor:pointer;">Wapas jao</button>
+    </div>`;
+  document.getElementById('workProg').textContent=`${workTotal}/${workTotal} ✓`;
+  document.getElementById('workProgBar').style.width='100%';
+}
+function drawWork(){
+  const d=data[workIdx];
+  const done=workTotal-workQueue.length-1;
+  document.getElementById('workProg').textContent=`${done+1} / ${workTotal}`;
+  document.getElementById('workProgBar').style.width=(((done)/workTotal)*100)+'%';
+  const tel=d.num, wa=waNum(d.num), msg=encodeURIComponent(msgFor(d));
+  const __lg=LANGS.find(l=>l[0]===d.lang); const langName=__lg?__lg[1]:(d.lang||'');
+  const st=STATUSES.find(s=>s.k===d.status)||STATUSES[0];
+  document.getElementById('workCard').innerHTML=`
+    <div style="text-align:center;margin-bottom:8px;">
+      <div style="font-family:'Sora';font-size:30px;font-weight:800;color:#eef2fb;line-height:1.2;margin-bottom:8px;">${esc(d.name||'(naam nahi)')}</div>
+      <div style="font-size:22px;color:#9db4ff;font-weight:700;letter-spacing:1px;margin-bottom:8px;">${esc(d.num||'')}</div>
+      <div style="display:inline-flex;gap:8px;align-items:center;font-size:13px;color:#9aa6c4;">
+        ${d.state?`<span>📍 ${esc(d.state)}</span>`:''} ${langName?`<span>🌐 ${esc(langName)}</span>`:''}
+      </div>
+      ${d.note?`<div style="margin-top:14px;background:rgba(255,180,94,.1);border:1px solid rgba(255,180,94,.3);border-radius:12px;padding:11px 14px;font-size:14px;color:#ffce9e;">📝 ${esc(d.note)}</div>`:''}
+    </div>
+
+    <!-- bade action buttons: Call + WhatsApp + Bank -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:22px 0 12px;">
+      <a href="tel:${tel}" onclick="onCall(${workIdx})" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:22px 10px;border-radius:18px;background:linear-gradient(135deg,#1fd18b,#13a06a);color:#fff;text-decoration:none;font-weight:800;font-size:17px;box-shadow:0 8px 22px rgba(31,209,139,.4);">
+        <span style="font-size:30px;">📞</span> Call
+      </a>
+      <a href="https://wa.me/${wa}?text=${msg}" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:22px 10px;border-radius:18px;background:linear-gradient(135deg,#25d366,#128c3e);color:#fff;text-decoration:none;font-weight:800;font-size:17px;box-shadow:0 8px 22px rgba(37,211,102,.4);">
+        <span style="font-size:30px;">💬</span> WhatsApp
+      </a>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px;">
+      <a href="sms:${tel}?body=${msg}" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border-radius:14px;background:rgba(120,140,190,.12);border:1px solid rgba(120,140,190,.25);color:#eef2fb;text-decoration:none;font-weight:700;font-size:14px;">✉️ SMS</a>
+      <button onclick="openBankSend(${workIdx})" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border-radius:14px;background:rgba(120,140,190,.12);border:1px solid rgba(120,140,190,.25);color:#eef2fb;font-weight:700;font-size:14px;cursor:pointer;">💳 Bank/UPI</button>
+    </div>
+
+    <!-- status do -> agla aaye -->
+    <div style="font-size:13px;color:#9aa6c4;text-align:center;margin-bottom:10px;font-weight:600;">Status do, agla apne aap aayega ↓</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <button onclick="workStatus('done')" style="padding:15px;border:none;border-radius:14px;background:rgba(31,209,139,.15);border:1px solid rgba(31,209,139,.4);color:#5ef0b0;font-weight:800;font-size:15px;cursor:pointer;">✅ Ho gaya</button>
+      <button onclick="workStatus('int')" style="padding:15px;border:none;border-radius:14px;background:rgba(79,124,255,.15);border:1px solid rgba(79,124,255,.4);color:#9db4ff;font-weight:800;font-size:15px;cursor:pointer;">⭐ Interested</button>
+      <button onclick="workStatus('no')" style="padding:15px;border:none;border-radius:14px;background:rgba(255,107,120,.12);border:1px solid rgba(255,107,120,.35);color:#ff9aa3;font-weight:800;font-size:15px;cursor:pointer;">📵 Nahi utha</button>
+      <button onclick="workStatus('later')" style="padding:15px;border:none;border-radius:14px;background:rgba(255,180,94,.12);border:1px solid rgba(255,180,94,.35);color:#ffce9e;font-weight:800;font-size:15px;cursor:pointer;">⏰ Baad mein</button>
+      <button onclick="workStatus('notint')" style="padding:15px;border:none;border-radius:14px;background:rgba(150,160,180,.12);border:1px solid rgba(150,160,180,.3);color:#aab2c6;font-weight:800;font-size:15px;cursor:pointer;">🚫 Not interested</button>
+      <button onclick="workNote(${workIdx})" style="padding:15px;border:none;border-radius:14px;background:rgba(150,160,180,.08);border:1px dashed rgba(150,160,180,.35);color:#9aa6c4;font-weight:700;font-size:14px;cursor:pointer;">📝 Note</button>
+    </div>
+    <button onclick="nextWork()" style="margin-top:14px;width:100%;padding:13px;border:none;border-radius:14px;background:transparent;border:1px solid rgba(120,140,190,.25);color:#9aa6c4;font-weight:700;font-size:14px;cursor:pointer;">Skip → agla customer</button>
+  `;
+}
+function workStatus(s){
+  data[workIdx].status=s;
+  data[workIdx].updated=todayStr();
+  if(s==='later'){
+    // baad mein -> kal ki date daal do (quick), bina dialog ke flow na ruke
+    const t=new Date(); t.setDate(t.getDate()+1);
+    data[workIdx].followup=t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");
+  } else {
+    data[workIdx].followup="";
+  }
+  save();
+  nextWork();
+}
+function workNote(i){
+  const cur=data[i].note||"";
+  const txt=prompt("Note / reason likhein:", cur);
+  if(txt===null) return;
+  data[i].note=txt.trim(); save(); drawWork();
 }
 </script>
 
