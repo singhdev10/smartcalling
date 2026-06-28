@@ -2,7 +2,7 @@
 // Naya version aane par customer ko "update" dikhता hai (WhatsApp jaisa)
 // Data/templates SAFE rehte hain (woh localStorage me, SW chhuता nahi)
 
-const VERSION = "dialflow-v5";   // <-- naya update karte waqt yeh number badlein (v3->v4)
+const VERSION = "dialflow-v10";   // <-- naya update karte waqt yeh number badlein (v3->v4)
 const RUNTIME = "dialflow-runtime";
 
 self.addEventListener("install", e => {
