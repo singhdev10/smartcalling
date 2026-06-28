@@ -1,17 +1,24 @@
 {
-  "name": "Calling System",
-  "short_name": "Calling",
+  "name": "DialFlow",
+  "short_name": "DialFlow",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f3efe6",
-  "theme_color": "#15212b",
+  "background_color": "#080b14",
+  "theme_color": "#080b14",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "icon.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
