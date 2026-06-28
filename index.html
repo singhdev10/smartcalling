@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Calling System</title>
-<meta name="theme-color" content="#0d1117">
+<meta name="theme-color" content="#080b14">
 <link rel="manifest" href="manifest.json">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -325,6 +325,7 @@ summary{cursor:pointer;font-size:13px;color:var(--brand2);font-weight:700;paddin
   <select id="langFilter" onchange="render()"><option value="">🌐 Sabhi bhasha</option></select>
   <select id="stateFilter" onchange="render()"><option value="">📍 Sabhi state</option></select>
 </div>
+<button id="smartBtn" onclick="smartStart()" style="width:100%;margin-bottom:12px;padding:15px;border:none;border-radius:14px;background:linear-gradient(135deg,#1fd18b,#13a06a);color:#fff;font-size:16px;font-weight:800;box-shadow:0 8px 22px rgba(31,209,139,.4);cursor:pointer;letter-spacing:.3px;">⚡ Smart Calling — Start</button>
 <div class="filterbar" id="filterbar"></div>
 <input class="search" id="search" placeholder="🔍 Naam ya number search..." oninput="render()">
 
@@ -861,5 +862,182 @@ licenseInit();
   else document.addEventListener('DOMContentLoaded', showInstallBtn);
 })(); // ALWAYS_SHOW_INSTALL
 </script>
+
+<!-- ===== SMART CALLING OVERLAY ===== -->
+<style>
+#smartOv{position:fixed;inset:0;z-index:200;background:linear-gradient(180deg,#080b14,#0c1226);display:none;flex-direction:column;padding:18px;}
+#smartOv.show{display:flex;animation:fadeUp .3s ease;}
+.sc-top{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+.sc-top .sc-x{margin-left:auto;background:rgba(255,255,255,.08);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer;}
+.sc-prog-wrap{background:rgba(255,255,255,.08);border-radius:20px;height:10px;overflow:hidden;margin-bottom:6px;}
+.sc-prog-wrap i{display:block;height:100%;background:linear-gradient(90deg,#1fd18b,#4f7cff);border-radius:20px;transition:width .4s;}
+.sc-meta{display:flex;justify-content:space-between;font-size:12px;color:#9aa6c4;font-weight:600;margin-bottom:18px;}
+.sc-card{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
+.sc-lang{font-size:12px;color:#7da3ff;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;background:rgba(79,124,255,.14);padding:6px 16px;border-radius:30px;}
+.sc-name{font-family:'Sora';font-size:34px;font-weight:800;color:#fff;margin-bottom:8px;line-height:1.15;}
+.sc-num{font-size:24px;color:#cdd6ee;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:1px;margin-bottom:6px;}
+.sc-state{font-size:14px;color:#9aa6c4;margin-bottom:20px;}
+.sc-timer{font-family:'Sora';font-size:48px;font-weight:800;color:#1fd18b;font-variant-numeric:tabular-nums;margin-bottom:6px;letter-spacing:2px;}
+.sc-timer.idle{color:#566b8c;}
+.sc-timerlbl{font-size:11px;color:#646f8c;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:24px;}
+.sc-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:420px;margin-bottom:14px;}
+.sc-actions a,.sc-actions button{text-decoration:none;text-align:center;padding:18px;border-radius:16px;font-size:17px;font-weight:800;color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;}
+.sc-call{background:linear-gradient(135deg,#1fc77d,#149c63);box-shadow:0 8px 20px rgba(31,199,125,.4);grid-column:1/3;font-size:20px;padding:22px;}
+.sc-wa{background:linear-gradient(135deg,#23d366,#16a34a);}
+.sc-sms{background:linear-gradient(135deg,#4f7cff,#2348c8);}
+.sc-status{display:flex;gap:8px;flex-wrap:wrap;width:100%;max-width:420px;justify-content:center;margin-bottom:14px;}
+.sc-status button{flex:1;min-width:90px;padding:14px 6px;border-radius:12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);color:#cdd6ee;font-size:13px;font-weight:700;cursor:pointer;}
+.sc-status button:active{transform:scale(.96);}
+.sc-bottom{display:flex;gap:10px;width:100%;max-width:420px;margin:0 auto;}
+.sc-bottom button{flex:1;padding:14px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;border:none;}
+.sc-skip{background:rgba(255,255,255,.08);color:#cdd6ee;}
+.sc-pause{background:rgba(255,175,94,.16);color:#ffaf5e;}
+.sc-quick{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;width:100%;max-width:420px;margin-bottom:14px;}
+.sc-quick button{padding:9px 14px;border-radius:30px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#9aa6c4;font-size:12px;font-weight:600;cursor:pointer;}
+.sc-quick button.on{background:rgba(79,124,255,.25);color:#fff;border-color:#4f7cff;}
+.sc-done-screen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;}
+.sc-done-screen .big{font-size:60px;margin-bottom:14px;}
+.sc-done-screen h2{font-family:'Sora';font-size:26px;margin-bottom:10px;}
+.sc-done-screen p{color:#9aa6c4;font-size:15px;margin-bottom:6px;}
+</style>
+<div id="smartOv">
+  <div class="sc-top">
+    <b style="font-family:'Sora';font-size:18px;color:#fff;">⚡ Smart Calling</b>
+    <button class="sc-x" onclick="smartClose()">✕</button>
+  </div>
+  <div class="sc-prog-wrap"><i id="scProg" style="width:0%"></i></div>
+  <div class="sc-meta"><span id="scFilterLbl">Sabhi</span><span id="scCount">0 / 0</span></div>
+  <div id="scBody"></div>
+</div>
+
+<script>
+let scList=[], scPos=0, scTimer=null, scSec=0, scNote="", scActive=false;
+
+function smartStart(){
+  // use currently filtered & shown customers (respects language/state/status filter)
+  render(); // make sure lastShownIdx is fresh
+  scList = lastShownIdx.slice();
+  // skip already-done ones automatically
+  scList = scList.filter(i => data[i] && data[i].status!=="done");
+  if(!scList.length){ alert("Is filter me koi (pending) customer nahi. Filter badlein ya 'Sabhi' karein."); return; }
+  // build filter label
+  const fl=(document.getElementById('langFilter')||{}).value||"";
+  const fs=(document.getElementById('stateFilter')||{}).value||"";
+  let lbl=[];
+  if(fl) lbl.push(langName(fl));
+  if(fs) lbl.push(fs);
+  if(filter!=="all" && filter!=="due"){ const st=STATUSES.find(s=>s.k===filter); if(st)lbl.push(st.label); }
+  document.getElementById('scFilterLbl').textContent = lbl.length?lbl.join(" • "):"Sabhi customers";
+  scPos=0; scActive=true;
+  document.getElementById('smartOv').classList.add('show');
+  scShow();
+}
+
+function scShow(){
+  stopTimer();
+  scSec=0; scNote="";
+  if(scPos>=scList.length){ scFinish(); return; }
+  const i=scList[scPos];
+  const d=data[i];
+  if(!d){ scPos++; scShow(); return; }
+  const pct=Math.round((scPos)/scList.length*100);
+  document.getElementById('scProg').style.width=pct+"%";
+  document.getElementById('scCount').textContent=(scPos+1)+" / "+scList.length;
+  const tel=d.num, wa=waNum(d.num), msg=encodeURIComponent(msgFor(d));
+  document.getElementById('scBody').innerHTML=`
+    <div class="sc-card">
+      <div class="sc-lang">${langName(d.lang||'hi')}</div>
+      <div class="sc-name">${esc(d.name)}</div>
+      <div class="sc-num">${esc(d.num)}</div>
+      <div class="sc-state">${d.state?('📍 '+esc(d.state)):''}</div>
+      <div class="sc-timer idle" id="scTimer">00:00</div>
+      <div class="sc-timerlbl">Call timer</div>
+      <div class="sc-actions">
+        <a class="sc-call" href="tel:${tel}" onclick="scOnCall()">📞 Call karein</a>
+        <a class="sc-wa" href="https://wa.me/${wa}?text=${msg}" target="_blank">💬 WhatsApp</a>
+        <a class="sc-sms" href="sms:${tel}?body=${msg}">✉️ SMS</a>
+      </div>
+      <div class="sc-quick" id="scQuick">
+        <button onclick="scQuickNote(this,'Interested')">Interested</button>
+        <button onclick="scQuickNote(this,'Rate poochha')">Rate poochha</button>
+        <button onclick="scQuickNote(this,'Busy tha')">Busy tha</button>
+        <button onclick="scQuickNote(this,'Wapas call')">Wapas call</button>
+      </div>
+      <div class="sc-status">
+        <button onclick="scSetStatus('done')">✅ Ho gaya</button>
+        <button onclick="scSetStatus('int')">⭐ Interested</button>
+        <button onclick="scSetStatus('later')">⏰ Baad mein</button>
+        <button onclick="scSetStatus('no')">📵 Nahi utha</button>
+      </div>
+      <div class="sc-bottom">
+        <button class="sc-skip" onclick="scSkip()">⏭ Skip</button>
+        <button class="sc-pause" onclick="scClose()">⏸ Pause / Exit</button>
+      </div>
+    </div>`;
+}
+
+function scOnCall(){ startTimer(); bumpToday(); }
+function startTimer(){
+  stopTimer(); scSec=0;
+  const el=document.getElementById('scTimer');
+  if(el){el.classList.remove('idle');}
+  scTimer=setInterval(()=>{
+    scSec++;
+    const m=String(Math.floor(scSec/60)).padStart(2,'0');
+    const s=String(scSec%60).padStart(2,'0');
+    const e=document.getElementById('scTimer');
+    if(e) e.textContent=m+":"+s;
+  },1000);
+}
+function stopTimer(){ if(scTimer){clearInterval(scTimer);scTimer=null;} }
+
+function scQuickNote(btn,txt){
+  scNote=txt;
+  document.querySelectorAll('#scQuick button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+}
+
+function scSetStatus(s){
+  const i=scList[scPos];
+  if(data[i]){
+    data[i].status=s;
+    data[i].updated=todayStr();
+    // save note + call duration into msg/meta (append to note)
+    let extra=[];
+    if(scNote) extra.push(scNote);
+    if(scSec>0) extra.push("call "+Math.floor(scSec/60)+"m"+(scSec%60)+"s");
+    if(extra.length){
+      data[i].note = (data[i].note?data[i].note+" | ":"") + extra.join(", ") + " ("+todayStr()+")";
+    }
+    if(s==="later"){
+      // set follow-up tomorrow by default
+      const dt=new Date();dt.setDate(dt.getDate()+1);
+      data[i].followup=dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");
+    }
+    save();
+  }
+  scPos++; scShow();
+}
+function scSkip(){ scPos++; scShow(); }
+function scClose(){ stopTimer(); scActive=false; document.getElementById('smartOv').classList.remove('show'); render(); }
+function smartClose(){ scClose(); }
+
+function scFinish(){
+  stopTimer();
+  document.getElementById('scProg').style.width="100%";
+  const total=scList.length;
+  let done=0,int=0;
+  scList.forEach(i=>{ if(data[i]){ if(data[i].status==='done')done++; if(data[i].status==='int')int++; }});
+  document.getElementById('scBody').innerHTML=`
+    <div class="sc-done-screen">
+      <div class="big">🎉</div>
+      <h2>Session pura hua!</h2>
+      <p><b style="color:#fff;font-size:20px;">${total}</b> customers nipta diye</p>
+      <p>⭐ ${int} interested &nbsp; ✅ ${done} done</p>
+      <button onclick="smartClose()" style="margin-top:24px;padding:15px 40px;border:none;border-radius:14px;background:linear-gradient(135deg,#4f7cff,#2348c8);color:#fff;font-size:16px;font-weight:800;cursor:pointer;">Wapas list pe</button>
+    </div>`;
+}
+</script>
+
 </body>
 </html>
