@@ -500,6 +500,7 @@ function todayCalls(){return getLog()[todayStr()]||0;}
 function bumpToday(){const l=getLog();const t=todayStr();l[t]=(l[t]||0)+1;localStorage.setItem(LKEY,JSON.stringify(l));}
 
 function cleanNum(n){return (n||"").replace(/[^\d+]/g,"");}
+function telNum(n){let x=(n||"").replace(/[^0-9]/g,"");if(x.length===10)x="91"+x;return x;}
 function waNum(n){let x=n.replace(/\D/g,"");if(x.length===10)x="91"+x;if(x.startsWith("0"))x="91"+x.slice(1);return x;}
 
 function addOne(){
@@ -826,7 +827,7 @@ function renderList(){
   const showArr=tooMany?shown.slice(0,showLimit):shown;
   list.innerHTML=showArr.map(({d,i})=>{
     const msg=encodeURIComponent(msgFor(d));
-    const tel=d.num, wa=waNum(d.num);
+    const tel=telNum(d.num), wa=waNum(d.num);
     const st=STATUSES.find(s=>s.k===d.status)||STATUSES[0];
     const due=isDue(d);
     return `<div class="card ${d.status==='done'?'done':''} ${due?'due':''}">
@@ -1161,7 +1162,7 @@ function drawWork(){
   const done=workTotal-workQueue.length-1;
   document.getElementById('workProg').textContent=`${done+1} / ${workTotal}`;
   document.getElementById('workProgBar').style.width=(((done)/workTotal)*100)+'%';
-  const tel=d.num, wa=waNum(d.num), msg=encodeURIComponent(msgFor(d));
+  const tel=telNum(d.num), wa=waNum(d.num), msg=encodeURIComponent(msgFor(d));
   const __lg=LANGS.find(l=>l[0]===d.lang); const langName=__lg?__lg[1]:(d.lang||'');
   const st=STATUSES.find(s=>s.k===d.status)||STATUSES[0];
   document.getElementById('workCard').innerHTML=`
