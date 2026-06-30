@@ -1,40 +1,1232 @@
-// DialFlow Service Worker — update banner ke saath
-// Naya version aane par customer ko "update" dikhता hai (WhatsApp jaisa)
-// Data/templates SAFE rehte hain (woh localStorage me, SW chhuता nahi)
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calling System</title>
+<meta name="theme-color" content="#080b14">
+<link rel="manifest" href="manifest.json">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+:root{
+  --bg:#080b14; --bg2:#0c1020; --glass:rgba(22,28,46,.72); --glass2:rgba(30,38,60,.6);
+  --line:rgba(120,140,190,.14); --line2:rgba(120,140,190,.22);
+  --ink:#eef2fb; --muted:#9aa6c4; --faint:#646f8c;
+  --brand:#4f7cff; --brand2:#6f9bff; --brand-deep:#2348c8;
+  --emerald:#1fd18b; --call:#1fc77d; --wa:#23d366; --sms:#4f7cff; --del:#ff5d6c;
+  --glow:0 0 0 1px rgba(79,124,255,.25), 0 8px 30px rgba(79,124,255,.18);
+  --new:rgba(214,185,78,.16); --new-t:#e6c659;
+  --done:rgba(31,209,139,.16); --done-t:#3fe6a0;
+  --later:rgba(255,150,60,.16); --later-t:#ffaf5e;
+  --no:rgba(255,93,108,.16); --no-t:#ff8089;
+  --int:rgba(79,124,255,.18); --int-t:#7da3ff;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  background:var(--bg); color:var(--ink); padding:0 0 80px; max-width:780px; margin:0 auto;
+  position:relative; min-height:100vh;
+}
+body::before{
+  content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background:
+    radial-gradient(700px 420px at 90% -8%, rgba(79,124,255,.16), transparent 70%),
+    radial-gradient(600px 380px at -5% 12%, rgba(31,209,139,.09), transparent 70%),
+    linear-gradient(180deg,#080b14,#0a0e1a 60%,#080b14);
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+@keyframes popIn{from{opacity:0;transform:scale(.96);}to{opacity:1;transform:scale(1);}}
+@keyframes glowPulse{0%,100%{box-shadow:0 0 0 0 rgba(79,124,255,.0);}50%{box-shadow:0 0 24px 2px rgba(79,124,255,.18);}}
+@keyframes shimmer{0%{background-position:-200% 0;}100%{background-position:200% 0;}}
+.reveal{animation:fadeUp .5s cubic-bezier(.22,1,.36,1) both;}
 
-const VERSION = "dialflow-v16";   // <-- naya update karte waqt yeh number badlein (v3->v4)
-const RUNTIME = "dialflow-runtime";
+/* ===== TOP BRAND BAR ===== */
+.brandbar{
+  position:sticky; top:0; z-index:30;
+  display:flex; align-items:center; gap:12px;
+  padding:16px 18px 14px; margin-bottom:6px;
+  background:linear-gradient(180deg,rgba(8,11,20,.92),rgba(8,11,20,.55));
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+}
+.logo{
+  width:38px;height:38px;border-radius:11px;flex:none;
+  background:linear-gradient(135deg,var(--brand),var(--brand-deep));
+  display:grid;place-items:center;font-size:19px;
+  box-shadow:0 6px 18px rgba(79,124,255,.4), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.brandtext{display:flex;flex-direction:column;line-height:1;}
+.brandtext b{font-family:'Sora';font-size:20px;font-weight:800;letter-spacing:-.3px;
+  background:linear-gradient(90deg,#fff,#9db4ff);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.brandtext span{font-size:10.5px;color:var(--muted);font-weight:600;letter-spacing:1.5px;text-transform:uppercase;margin-top:3px;}
+.brandbar .live{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);font-weight:600;}
+.brandbar .dot{width:7px;height:7px;border-radius:50%;background:var(--emerald);box-shadow:0 0 8px var(--emerald);animation:glowPulse 2s infinite;}
 
-self.addEventListener("install", e => {
-  // turant install, par control NAHI leta (taaki update bar dikhe)
-  self.skipWaiting === undefined ? null : null; // no auto skip
-});
+.wrap{padding:0 14px;}
 
-self.addEventListener("activate", e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== RUNTIME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
-});
+/* ===== HERO: target ring + stats ===== */
+.hero{
+  display:flex; gap:14px; align-items:stretch; margin-bottom:14px;
+}
+.ring-card{
+  flex:none; width:160px; border-radius:20px; padding:16px;
+  background:var(--glass); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--line2); display:flex; flex-direction:column; align-items:center; justify-content:center;
+  box-shadow:0 10px 34px rgba(0,0,0,.4);
+}
+.ring{position:relative;width:108px;height:108px;}
+.ring svg{transform:rotate(-90deg);}
+.ring .track{stroke:rgba(120,140,190,.16);}
+.ring .prog{stroke:url(#rg);stroke-linecap:round;transition:stroke-dashoffset .8s cubic-bezier(.22,1,.36,1);}
+.ring .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.ring .center b{font-family:'Sora';font-size:30px;font-weight:800;line-height:1;}
+.ring .center small{font-size:11px;color:var(--muted);margin-top:3px;font-weight:600;}
+.ring-card .rlabel{margin-top:11px;font-size:11px;color:var(--muted);font-weight:700;letter-spacing:1px;text-transform:uppercase;display:flex;align-items:center;gap:5px;}
+.ring-card .tset{display:flex;gap:5px;margin-top:9px;width:100%;}
+.ring-card .tset input{width:100%;padding:7px;font-size:13px;text-align:center;border:1px solid var(--line2);border-radius:8px;background:var(--bg2);color:var(--ink);}
+.ring-card .tset button{padding:7px 10px;font-size:12px;font-weight:700;border:none;border-radius:8px;background:var(--brand);color:#fff;cursor:pointer;}
 
-// app se "SKIP_WAITING" aaye -> naya version chालu karo
-self.addEventListener("message", e => {
-  if (e.data && e.data.type === "SKIP_WAITING") {
-    self.skipWaiting();
+.statgrid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.scard{
+  border-radius:16px;padding:13px 14px;
+  background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:1px solid var(--line);position:relative;overflow:hidden;
+  display:flex;flex-direction:column;justify-content:center;
+  box-shadow:0 6px 20px rgba(0,0,0,.3);transition:transform .25s,border-color .25s;
+}
+.scard:hover{transform:translateY(-2px);border-color:var(--line2);}
+.scard b{font-family:'Sora';font-size:26px;font-weight:800;line-height:1;}
+.scard span{font-size:10.5px;color:var(--muted);font-weight:600;letter-spacing:.8px;text-transform:uppercase;margin-top:5px;}
+.scard::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px;}
+.scard.s-total::after{background:var(--brand);}
+.scard.s-pend::after{background:var(--new-t);}
+.scard.s-done::after{background:var(--done-t);}
+.scard.s-later::after{background:var(--later-t);}
+.scard.s-int::after{background:var(--int-t);}
+
+/* ===== panels / cards ===== */
+.panel{
+  background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--line);border-radius:20px;padding:16px;margin-bottom:14px;
+  box-shadow:0 8px 28px rgba(0,0,0,.32);
+}
+.panel h2{font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--muted);margin-bottom:12px;font-weight:700;}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+input,textarea,select{
+  font-size:15px;padding:12px 13px;border:1px solid var(--line2);border-radius:12px;
+  background:var(--bg2);color:var(--ink);width:100%;font-family:inherit;transition:border-color .2s,box-shadow .2s;
+}
+.row input{flex:1;min-width:140px;}
+textarea{resize:vertical;min-height:48px;}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(79,124,255,.16);}
+::placeholder{color:var(--faint);}
+label.sub{font-size:11px;color:var(--muted);display:block;margin:5px 2px;}
+
+button{cursor:pointer;border:none;border-radius:12px;font-weight:700;font-size:14px;padding:12px 16px;color:#fff;font-family:inherit;transition:transform .15s,box-shadow .2s,opacity .2s;}
+button:active{transform:scale(.97);}
+.btn-add{
+  background:linear-gradient(135deg,var(--brand),var(--brand-deep));width:100%;
+  box-shadow:0 8px 22px rgba(79,124,255,.36), inset 0 1px 0 rgba(255,255,255,.18);
+  letter-spacing:.2px;
+}
+.btn-add:hover{box-shadow:0 10px 30px rgba(79,124,255,.5);}
+.btn-ghost{background:var(--glass2);color:var(--ink);border:1px solid var(--line2);}
+.btn-ghost:hover{border-color:var(--brand);color:#fff;}
+
+.tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+.tools button,.tools label{flex:1;min-width:120px;text-align:center;}
+.filein{display:none;}
+.fakefile{background:var(--glass2);color:var(--ink);border:1px dashed var(--line2);border-radius:12px;padding:12px;font-weight:700;font-size:14px;cursor:pointer;transition:border-color .2s;}
+.fakefile:hover{border-color:var(--brand);}
+
+/* combo + filter */
+.comboFilter{display:flex;gap:10px;margin-bottom:10px;}
+.comboFilter select{flex:1;font-size:13px;padding:11px 12px;border:1px solid var(--line2);border-radius:12px;background:var(--glass2);color:var(--ink);}
+.filterbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.chip{background:var(--glass2);border:1px solid var(--line2);border-radius:30px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);transition:all .2s;}
+.chip:hover{color:var(--ink);border-color:var(--brand);}
+.chip.on{background:linear-gradient(135deg,var(--brand),var(--brand-deep));color:#fff;border-color:transparent;box-shadow:0 6px 16px rgba(79,124,255,.35);}
+
+.search{margin-bottom:14px;}
+
+/* customer card */
+.card{
+  background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:1px solid var(--line);border-radius:18px;padding:15px;margin-bottom:12px;
+  box-shadow:0 6px 22px rgba(0,0,0,.3);transition:transform .25s,border-color .25s,box-shadow .25s;
+  animation:popIn .4s ease both;
+}
+.card:hover{transform:translateY(-3px);border-color:var(--line2);box-shadow:0 12px 32px rgba(0,0,0,.45);}
+.card.done{opacity:.55;}
+.card.due{border-color:rgba(255,150,60,.4);box-shadow:0 0 0 1px rgba(255,150,60,.3),0 8px 26px rgba(0,0,0,.4);}
+.card .top{display:flex;align-items:center;gap:11px;margin-bottom:10px;}
+.card .name{font-family:'Sora';font-weight:700;font-size:16px;letter-spacing:-.2px;}
+.card .num{font-size:13px;color:var(--muted);margin-left:auto;font-variant-numeric:tabular-nums;font-weight:600;}
+.card .note{font-size:12.5px;color:var(--muted);margin:-2px 0 9px;line-height:1.45;}
+.card .meta{font-size:11px;color:var(--faint);margin:-2px 0 9px;}
+.selbox{width:20px;height:20px;accent-color:var(--brand);cursor:pointer;flex:none;border-radius:6px;}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:30px;margin-bottom:9px;margin-right:6px;}
+.b-new{background:var(--new);color:var(--new-t);} .b-done{background:var(--done);color:var(--done-t);}
+.b-later{background:var(--later);color:var(--later-t);} .b-no{background:var(--no);color:var(--no-t);}
+.b-int{background:var(--int);color:var(--int-t);} .b-notint{background:rgba(150,160,180,.16);color:#aab2c6;} .badge-due{background:var(--later);color:var(--later-t);}
+
+.langrow{display:flex;align-items:center;gap:9px;margin-bottom:10px;}
+.langlbl{font-size:11px;color:var(--muted);font-weight:700;display:flex;align-items:center;gap:4px;}
+.langsel{font-size:12px;padding:8px 10px;border:1px solid var(--line2);border-radius:10px;background:var(--bg2);color:var(--ink);width:auto;flex:1;}
+
+.actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;}
+.actions a,.actions button{text-decoration:none;text-align:center;display:flex;align-items:center;justify-content:center;gap:4px;border-radius:12px;padding:11px 4px;font-size:13px;font-weight:700;color:#fff;transition:transform .15s,filter .2s;}
+.actions a:active{transform:scale(.95);}
+.a-call{background:linear-gradient(135deg,#1fc77d,#149c63);box-shadow:0 5px 14px rgba(31,199,125,.32);}
+.a-wa{background:linear-gradient(135deg,#23d366,#16a34a);box-shadow:0 5px 14px rgba(35,211,102,.3);}
+.a-sms{background:linear-gradient(135deg,#4f7cff,#2348c8);box-shadow:0 5px 14px rgba(79,124,255,.3);}
+.a-del{background:transparent;color:var(--del);border:1px solid var(--del);box-shadow:none;}
+.a-del:hover{background:rgba(255,93,108,.1);}
+
+.statusrow{display:flex;gap:6px;flex-wrap:wrap;}
+.statusrow button{flex:1;min-width:60px;font-size:11px;padding:8px 3px;background:var(--bg2);color:var(--muted);border:1px solid var(--line2);font-weight:600;}
+.statusrow button.sel{background:linear-gradient(135deg,var(--brand),var(--brand-deep));color:#fff;border-color:transparent;}
+
+.empty{text-align:center;color:var(--faint);padding:40px 20px;font-size:14px;line-height:1.6;}
+
+/* bulk bar */
+.bulkbar{position:sticky;top:70px;z-index:25;background:linear-gradient(135deg,var(--brand),var(--brand-deep));color:#fff;border-radius:16px;padding:13px 15px;margin-bottom:12px;display:none;align-items:center;gap:10px;box-shadow:0 10px 28px rgba(79,124,255,.4);animation:fadeUp .3s ease;}
+.bulkbar.show{display:flex;}
+.bulkbar b{font-size:15px;font-family:'Sora';}
+.bulkbar .spacer{flex:1;}
+.bulkbar button{background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:800;cursor:pointer;}
+.bulkbar button.wa{background:#fff;color:var(--brand-deep);}
+.seltools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.seltools button{background:var(--glass2);color:var(--muted);border:1px solid var(--line2);border-radius:10px;padding:9px 14px;font-size:12px;font-weight:700;cursor:pointer;flex:none;width:auto;}
+.seltools button:hover{border-color:var(--brand);color:var(--ink);}
+
+.hint{font-size:11px;color:var(--faint);margin:6px 0 12px;line-height:1.6;}
+details{margin-bottom:14px;}
+summary{cursor:pointer;font-size:13px;color:var(--brand2);font-weight:700;padding:4px 0;}
+
+/* follow-up banner */
+.duebar{background:var(--later);border:1px solid rgba(255,150,60,.4);border-radius:14px;padding:12px 15px;margin-bottom:14px;font-size:13px;font-weight:700;color:var(--later-t);display:none;cursor:pointer;animation:fadeUp .3s ease;}
+.duebar.show{display:block;}
+
+/* install button */
+#installBtn{position:fixed;right:16px;bottom:18px;z-index:60;display:none;background:linear-gradient(135deg,var(--brand),var(--brand-deep));color:#fff;border-radius:30px;padding:13px 18px;font-size:14px;font-weight:800;box-shadow:0 8px 24px rgba(79,124,255,.5);border:none;cursor:pointer;animation:glowPulse 2.5s infinite;}
+#installBtn.show{display:block;}
+
+/* dialog */
+.dlg{position:fixed;inset:0;background:rgba(4,6,12,.7);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:22px;z-index:50;}
+.dlg.show{display:flex;}
+.dlg .box{background:var(--glass);backdrop-filter:blur(20px);border:1px solid var(--line2);border-radius:20px;padding:20px;width:100%;max-width:340px;box-shadow:0 20px 50px rgba(0,0,0,.5);}
+.dlg h3{font-size:16px;margin-bottom:14px;font-family:'Sora';}
+.dlg input{margin-bottom:14px;}
+.dlg .drow{display:flex;gap:10px;}
+.dlg .drow button{flex:1;}
+
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+/* icon-btn-align */
+.btn-add,.btn-ghost,.fakefile,.a-call,.a-wa,.a-sms,summary,.wa{display:inline-flex;align-items:center;justify-content:center;gap:2px;}
+summary{display:flex;align-items:center;}
+.actions a{display:inline-flex !important;align-items:center;justify-content:center;}
+</style>
+</head>
+<body>
+<div id="updateBar" onclick="doUpdate()" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9998;background:linear-gradient(135deg,#1fd18b,#13a06a);color:#fff;text-align:center;padding:13px 16px;font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 4px 18px rgba(31,209,139,.5);animation:slideDown .4s ease;">
+  🔄 Naya update aaya hai — yahan dabayein
+</div>
+<style>@keyframes slideDown{from{transform:translateY(-100%);}to{transform:translateY(0);}}</style>
+<!-- ===== LICENSE GATE ===== -->
+<div id="licGate" style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(800px 500px at 50% 0%,rgba(79,124,255,.14),transparent 70%),linear-gradient(180deg,#080b14,#0a0e1a);">
+  <div style="max-width:360px;width:100%;text-align:center;animation:fadeUp .6s ease both;">
+    <div style="width:72px;height:72px;border-radius:20px;margin:0 auto 18px;background:linear-gradient(135deg,#4f7cff,#2348c8);display:grid;place-items:center;font-size:34px;box-shadow:0 14px 40px rgba(79,124,255,.5),inset 0 1px 0 rgba(255,255,255,.25);">📞</div>
+    <h2 style="font-family:'Sora';font-size:26px;font-weight:800;margin-bottom:4px;background:linear-gradient(90deg,#fff,#9db4ff);-webkit-background-clip:text;background-clip:text;color:transparent;">DialFlow</h2>
+    <p style="color:#9aa6c4;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-bottom:22px;">Premium Calling Suite</p>
+    <div style="background:rgba(22,28,46,.7);backdrop-filter:blur(16px);border:1px solid rgba(120,140,190,.2);border-radius:20px;padding:22px;box-shadow:0 16px 44px rgba(0,0,0,.5);">
+      <p style="color:#eef2fb;font-size:14px;font-weight:600;margin-bottom:14px;">🔐 License key se activate karein</p>
+      <input id="licInput" placeholder="XXXX-XXXX-XXXX" style="width:100%;padding:14px;border:1px solid rgba(120,140,190,.25);border-radius:12px;background:#0c1020;color:#eef2fb;font-size:16px;text-align:center;letter-spacing:2px;margin-bottom:10px;font-family:'Sora';">
+      <input id="devNameInput" placeholder="This device name (e.g. Ramesh phone)" style="width:100%;padding:13px;border:1px solid rgba(120,140,190,.25);border-radius:12px;background:#0c1020;color:#eef2fb;font-size:14px;text-align:center;margin-bottom:12px;">
+      <button id="licBtn" onclick="activateLicense()" style="width:100%;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,#4f7cff,#2348c8);color:#fff;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 8px 22px rgba(79,124,255,.4);">Activate Now</button>
+      <p id="licMsg" style="color:#ff8089;font-size:12px;margin-top:12px;min-height:16px;"></p>
+    </div>
+    <p style="color:#646f8c;font-size:11px;margin-top:18px;">Contact us for a license key</p>
+  </div>
+</div>
+
+<!-- ===== BRAND BAR ===== -->
+<div class="brandbar">
+  <div class="logo">📞</div>
+  <div class="brandtext">
+    <b>DialFlow</b>
+    <span id="custCount">0 contacts</span>
+  </div>
+  <div class="live" style="margin-left:10px;"><span class="dot"></span> LIVE</div>
+</div>
+
+<div class="wrap">
+<!-- ===== HERO: ring + stats ===== -->
+<div class="hero reveal">
+  <div class="ring-card">
+    <div class="ring">
+      <svg width="108" height="108" viewBox="0 0 108 108">
+        <defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#6f9bff"/><stop offset="1" stop-color="#2348c8"/>
+        </linearGradient></defs>
+        <circle class="track" cx="54" cy="54" r="46" fill="none" stroke-width="9"/>
+        <circle class="prog" id="ringProg" cx="54" cy="54" r="46" fill="none" stroke-width="9"
+          stroke-dasharray="289" stroke-dashoffset="289"/>
+      </svg>
+      <div class="center"><b id="todayCount">0</b><small>/ <span id="targetVal">20</span></small></div>
+    </div>
+    <div class="rlabel">📞 Today's calls</div>
+    <div class="tset">
+      <input id="targetInput" type="number" min="1" value="20" inputmode="numeric">
+      <button onclick="saveTarget()">Set</button>
+    </div>
+  </div>
+  <div class="statgrid" id="stats"></div>
+</div>
+
+<!-- FOLLOW-UP BANNER -->
+<div class="duebar" id="duebar" onclick="setFilter('due')"></div>
+
+<div class="panel">
+  <h2>Add New Customer</h2>
+  <div class="row">
+    <input id="f-name" placeholder="Name">
+    <input id="f-num" placeholder="Mobile number" inputmode="numeric">
+  </div>
+  <textarea id="f-msg" placeholder="WhatsApp/SMS message for this customer (optional)"></textarea>
+  <div style="height:8px"></div>
+  <button class="btn-add" onclick="addOne()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:7px;flex:none;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add customer</button>
+</div>
+
+<details>
+  <summary><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:7px;flex:none;"><line x1="3" y1="21" x2="21" y2="21"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="5,6 12,3 19,6"/><line x1="4" y1="10" x2="4" y2="21"/><line x1="20" y1="10" x2="20" y2="21"/><line x1="8" y1="14" x2="8" y2="17"/><line x1="12" y1="14" x2="12" y2="17"/><line x1="16" y1="14" x2="16" y2="17"/></svg>Bank Accounts / UPI (for sending payment)</summary>
+  <div class="panel" style="margin-top:10px">
+    <label class="sub">Add your bank account / UPI. Choose which one to send when contacting a customer.</label>
+    <div id="bankList"></div>
+    <div style="border-top:1px solid var(--line);margin:12px 0;padding-top:12px;">
+      <input id="bkName" placeholder="Bank name (e.g. SBI, PhonePe)" style="margin-bottom:7px">
+      <input id="bkAcc" placeholder="Account number" style="margin-bottom:7px" inputmode="numeric">
+      <input id="bkIfsc" placeholder="IFSC code" style="margin-bottom:7px">
+      <input id="bkUpi" placeholder="UPI ID (e.g. name@paytm)" style="margin-bottom:7px">
+      <input id="bkHolder" placeholder="Account holder name" style="margin-bottom:7px">
+      <button class="btn-add" onclick="addBank()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:7px;flex:none;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add account</button>
+    </div>
+  </div>
+</details>
+
+<details>
+  <summary><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:7px;flex:none;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>Language Message Templates (edit)</summary>
+  <div class="panel" style="margin-top:10px">
+    <label class="sub">Choose a language, edit the message, then Save. Type {name} and the customer name fills in automatically.</label>
+    <select id="tmplLang" onchange="loadTmplEditor()" style="margin-bottom:8px"></select>
+    <textarea id="tmplText" style="min-height:90px"></textarea>
+    <div style="height:8px"></div>
+    <button class="btn-add" onclick="saveTmpl()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:7px;flex:none;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>Save this language</button>
+  </div>
+</details>
+
+<div class="tools">
+  <label class="fakefile"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:7px;flex:none;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Import Data (Excel or CSV)
+    <input class="filein" type="file" accept=".csv,.xlsx,.xls" onchange="importFile(event)">
+  </label>
+  <button class="btn-ghost" onclick="exportCSV()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:7px;flex:none;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Export CSV</button>
+  <button class="btn-ghost" onclick="clearAll()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:7px;flex:none;"><polyline points="3,6 5,6 21,6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Clear all</button>
+</div>
+<div class="hint">Upload your Excel or CSV file. The system auto-detects name, number, state. Email is skipped automatically. Columns can be in any order.</div>
+
+<div class="bulkbar" id="bulkbar">
+  <b id="bulkcount">0 selected</b>
+  <div class="spacer"></div>
+  <button class="wa" onclick="bulkWhatsApp()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:7px;flex:none;"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>WhatsApp all</button>
+  <button onclick="clearSel()">✕</button>
+</div>
+<div class="seltools">
+  <button onclick="selectAllShown()">☑ Select all</button>
+  <button onclick="clearSel()">▢ Clear</button>
+</div>
+<div class="comboFilter">
+  <select id="langFilter" onchange="showLimit=60;renderList()"><option value="">🌐 All languages</option></select>
+  <select id="stateFilter" onchange="showLimit=60;renderList()"><option value="">📍 All states</option></select>
+</div>
+<button onclick="startWork()" style="width:100%;margin-bottom:12px;padding:14px 18px;border:1px solid rgba(79,124,255,.4);border-radius:18px;background:rgba(79,124,255,.1);color:#eef2fb;cursor:pointer;display:flex;align-items:center;gap:14px;"><span style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#4f7cff,#2348c8);display:grid;place-items:center;font-size:24px;flex:none;box-shadow:0 6px 16px rgba(79,124,255,.5);">⚡</span><span style="text-align:left;"><b style="font-family:'Sora';font-size:17px;font-weight:800;display:block;">Turbo Calling</b><span style="font-size:12px;color:#9aa6c4;">One by one, non-stop</span></span><span style="margin-left:auto;font-size:20px;color:#9db4ff;">→</span></button>
+<div class="filterbar" id="filterbar"></div>
+<input class="search" id="search" placeholder="🔍 Search name or number..." oninput="showLimit=60;renderList()">
+
+
+<div id="list"></div>
+
+<!-- follow-up date dialog -->
+<div class="dlg" id="dlg">
+  <div class="box">
+    <h3>When to call again?</h3>
+    <input id="dlgDate" type="date">
+    <div class="drow">
+      <button class="btn-ghost" onclick="closeDlg()">Cancel</button>
+      <button class="btn-add" style="width:auto" onclick="confirmDlg()">Set reminder</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+<!-- floating install button -->
+<button id="installBtn" onclick="doInstall()">⬇ Install App</button>
+
+<script>
+const KEY="calling_product_v1";
+const SEED_DATA=[];
+const LANGS=[["hi", "हिन्दी Hindi"], ["en", "English"], ["ta", "தமிழ் Tamil"], ["te", "తెలుగు Telugu"], ["kn", "ಕನ್ನಡ Kannada"], ["ml", "മലയാളം Malayalam"], ["mr", "मराठी Marathi"], ["pa", "ਪੰਜਾਬੀ Punjabi"], ["gu", "ગુજરાતી Gujarati"], ["bn", "বাংলা Bengali"], ["or", "ଓଡ଼ିଆ Odia"]];
+const DEFAULT_TEMPLATES={"hi": "नमस्ते {name} जी! हम अपनी सेवा के बारे में आपसे बात करना चाहते थे। कृपया हमें बताएं कि क्या आप अधिक जानकारी चाहेंगे।", "en": "Hello {name}! We wanted to tell you about our service. Please let us know if you'd like more details.", "ta": "வணக்கம் {name}! எங்கள் சேவை குறித்து உங்களிடம் பேச விரும்பினோம். மேலும் விவரங்கள் வேண்டுமா என்று எங்களுக்குத் தெரிவிக்கவும்.", "te": "నమస్కారం {name}! మా సేవ గురించి మీతో మాట్లాడాలనుకున్నాము. మరిన్ని వివరాలు కావాలంటే మాకు తెలియజేయండి.", "kn": "ನಮಸ್ಕಾರ {name}! ನಮ್ಮ ಸೇವೆಯ ಬಗ್ಗೆ ನಿಮ್ಮೊಂದಿಗೆ ಮಾತನಾಡಲು ಬಯಸಿದ್ದೆವು. ಹೆಚ್ಚಿನ ಮಾಹಿತಿ ಬೇಕಿದ್ದರೆ ತಿಳಿಸಿ.", "ml": "നമസ്കാരം {name}! ഞങ്ങളുടെ സേവനത്തെക്കുറിച്ച് നിങ്ങളോട് സംസാരിക്കാൻ ആഗ്രഹിച്ചു. കൂടുതൽ വിവരങ്ങൾ വേണമെങ്കിൽ അറിയിക്കുക.", "mr": "नमस्कार {name}! आमच्या सेवेबद्दल तुमच्याशी बोलायचे होते. अधिक माहिती हवी असल्यास आम्हाला कळवा.", "pa": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ {name}! ਅਸੀਂ ਆਪਣੀ ਸੇਵਾ ਬਾਰੇ ਤੁਹਾਡੇ ਨਾਲ ਗੱਲ ਕਰਨਾ ਚਾਹੁੰਦੇ ਸੀ। ਜੇ ਤੁਸੀਂ ਹੋਰ ਜਾਣਕਾਰੀ ਚਾਹੁੰਦੇ ਹੋ ਤਾਂ ਸਾਨੂੰ ਦੱਸੋ।", "gu": "નમસ્તે {name}! અમે અમારી સેવા વિશે તમારી સાથે વાત કરવા માગતા હતા. વધુ માહિતી જોઈતી હોય તો અમને જણાવો.", "bn": "নমস্কার {name}! আমরা আমাদের পরিষেবা সম্পর্কে আপনার সাথে কথা বলতে চেয়েছিলাম। আরও তথ্য চাইলে আমাদের জানান।", "or": "ନମସ୍କାର {name}! ଆମେ ଆମର ସେବା ବିଷୟରେ ଆପଣଙ୍କ ସହ କଥା ହେବାକୁ ଚାହୁଁଥିଲୁ। ଅଧିକ ସୂଚନା ଆବଶ୍ୟକ ହେଲେ ଆମକୁ ଜଣାନ୍ତୁ।"};
+const TMPLKEY="calling_templates_v1";
+const BANKKEY="calling_banks_v1";
+function getBanks(){ try{ return JSON.parse(localStorage.getItem(BANKKEY))||[]; }catch(e){ return []; } }
+function saveBanks(arr){ localStorage.setItem(BANKKEY, JSON.stringify(arr)); }
+function addBank(){
+  const name=(document.getElementById('bkName').value||"").trim();
+  const acc=(document.getElementById('bkAcc').value||"").trim();
+  const ifsc=(document.getElementById('bkIfsc').value||"").trim();
+  const upi=(document.getElementById('bkUpi').value||"").trim();
+  const holder=(document.getElementById('bkHolder').value||"").trim();
+  if(!name){ alert("Bank ka naam daalein."); return; }
+  if(!acc && !upi){ alert("Account number ya UPI me se ek to daalein."); return; }
+  const banks=getBanks();
+  banks.push({name,acc,ifsc,upi,holder});
+  saveBanks(banks);
+  document.getElementById('bkName').value="";
+  document.getElementById('bkAcc').value="";
+  document.getElementById('bkIfsc').value="";
+  document.getElementById('bkUpi').value="";
+  document.getElementById('bkHolder').value="";
+  renderBanks();
+  alert(name+" account add ho gaya.");
+}
+function delBank(idx){
+  if(!confirm("Yeh account hatayein?")) return;
+  const banks=getBanks(); banks.splice(idx,1); saveBanks(banks); renderBanks();
+}
+function renderBanks(){
+  const el=document.getElementById('bankList'); if(!el) return;
+  const banks=getBanks();
+  if(!banks.length){ el.innerHTML='<div style="font-size:12px;color:var(--faint);padding:6px 0;">No account yet. Add below.</div>'; return; }
+  el.innerHTML=banks.map((b,i)=>`<div style="background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <b style="font-size:14px;color:var(--ink);">${esc(b.name)}</b>
+      <button onclick="delBank(${i})" style="margin-left:auto;background:transparent;border:1px solid var(--del);color:var(--del);border-radius:8px;padding:5px 10px;font-size:12px;">Remove</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:5px;line-height:1.6;">
+      ${b.acc?`A/c: ${esc(b.acc)}<br>`:''}${b.ifsc?`IFSC: ${esc(b.ifsc)}<br>`:''}${b.upi?`UPI: ${esc(b.upi)}<br>`:''}${b.holder?`Name: ${esc(b.holder)}`:''}
+    </div>
+  </div>`).join("");
+}
+function bankMsgText(b){
+  let lines=["*Payment Details*"];
+  lines.push("Bank: "+b.name);
+  if(b.holder) lines.push("Name: "+b.holder);
+  if(b.acc) lines.push("A/c No: "+b.acc);
+  if(b.ifsc) lines.push("IFSC: "+b.ifsc);
+  if(b.upi) lines.push("UPI: "+b.upi);
+  return lines.join("\n");
+}
+const STATE_LANG={"maharashtra": "mr", "tamil nadu": "ta", "delhi": "hi", "andhra pradesh": "te", "karnataka": "kn", "uttar pradesh": "hi", "west bengal": "bn", "gujarat": "gu", "madhya pradesh": "hi", "kerala": "ml", "haryana": "hi", "jharkhand": "hi", "rajasthan": "hi", "chhatisgarh": "hi", "chhattisgarh": "hi", "punjab": "pa", "orissa": "or", "odisha": "or", "assam": "bn", "uttaranchal": "hi", "uttarakhand": "hi", "bihar": "hi", "jammu & kashmir": "hi", "chandigarh": "pa", "himachal pradesh": "hi", "telangana": "te", "goa": "mr", "nagaland": "en", "tripura": "bn", "arunachal pradesh": "en", "nagar haveli": "hi", "biratnagar": "en", "morang": "en", "bd": "en", "new delhi": "hi", "kochi": "ml", "thane": "mr", "dehradun": "hi", "bhilai": "hi", "korba": "hi", "jammu": "hi", "bhopal": "hi", "pune": "mr", "ghaziabad": "hi", "vishakapatnam": "te", "vadodara": "gu", "kolkata": "bn", "chennai": "ta", "shahjahanpur": "hi", "coimbatore": "ta", "durgapur": "bn", "hyderabad": "te", "nagpur": "mr", "mumbai": "mr", "kanpur": "hi", "gurgaon": "hi", "bangalore": "kn", "navi mumbai": "mr", "palakkad": "ml", "surat": "gu", "aurangabad": "mr", "gandhinagar": "gu", "bilaspur": "hi", "salem": "ta", "guwahati": "bn", "noida": "hi", "tiruchchirapalli": "ta", "dhaka": "en", "meerut": "hi", "solapur": "mr", "patiala": "pa", "ambala": "hi", "ranchi": "hi", "vapi": "gu", "faridabad": "hi", "warangal": "te", "ludhiana": "pa", "ranipet": "ta", "palakonda": "te", "indore": "hi", "kondagaon": "hi", "jaipur": "hi", "ahmedabad": "gu", "vijayawada": "te", "varanasi": "hi", "ujjain": "hi", "guna": "hi", "nashik": "mr", "bhubaneshwar": "or", "muzaffarnagar": "hi", "dhanbad": "hi", "secunderabad": "te", "tirunelveli": "ta", "gwalior": "hi", "dahod": "gu", "azamgarh": "hi", "lucknow": "hi", "rohtak": "hi", "kalyan west": "mr", "durgachak": "bn", "sullurupeta": "te", "pensioner": "ta", "ambasamudram": "ta", "bharuch": "gu", "mangalore": "kn", "tiruvalla": "ml", "agra": "hi", "howrah": "bn", "patna": "hi", "hosur": "ta", "kadur": "kn", "malda": "bn", "raebareli": "hi", "ponneri": "ta", "balasore": "or", "thanjavur": "mr", "phagwara": "pa", "jabalpur": "hi", "raipur": "hi", "rawatbhata": "hi", "trissur": "ml", "tirupati": "te", "panchkula": "hi", "dombivli": "mr", "dalhousie": "hi", "thiruvananthapuram": "ml", "shimla": "hi", "ambernath": "mr", "silvasa": "hi", "guntur": "te", "allahabad": "hi", "maudaha": "hi", "siliguri": "bn", "rajamundry": "te", "rajkot": "gu", "tiruppur": "bn", "mirzapur": "hi", "valsad": "gu", "nanded": "mr", "eluru": "te", "erode": "ta", "nellore": "te", "kurnool": "te", "pali marwar": "hi", "dombivli west": "mr", "kozhikode": "ml", "berhampore": "bn", "sultanpur": "hi", "sidhi": "hi", "kovilpatti": "ta", "jalandhar": "pa", "burdwan": "bn", "kota": "hi", "bareilly": "hi", "mountabu": "hi", "dimapur": "en", "bhagalpur": "hi", "cuttack": "or", "madhubani": "hi", "damanjodi": "or", "satna": "hi", "nagaon": "bn", "mau": "hi", "rajendranagar": "hi", "bellary": "kn", "ankleshwar": "gu", "jamshedpur": "hi", "aligarh": "hi", "liluah": "bn", "bhadrakali": "bn", "dmoh": "hi", "neyveli": "ta", "udhamsingh nagar": "hi", "penugonda": "te", "dhanpuri": "hi", "barnala": "pa", "sahibabad": "hi", "namakkal": "ta", "amravati": "mr", "cochin": "ml", "bokaro": "hi", "kottayam": "ml", "rupnarayanpur": "bn", "davangere": "kn", "jodhpur": "hi", "aluva": "ml", "dharwad": "kn", "kasaragod": "ml", "chidambaram": "ta", "banhatti": "kn", "haldwani": "hi", "bongaigaon": "bn", "gudalur": "ta", "narasaraopet": "te", "midnapore": "bn", "janak puri": "hi", "tanuku": "te", "jharsuguda": "or", "almora": "hi", "ratlam": "hi", "amritsar": "pa", "mysore": "kn", "ballabgarh": "hi", "agartala": "bn", "rewari": "hi", "ghandinagar": "gu", "suratgarh": "hi", "talwara": "pa", "karnal": "hi", "tornagallu": "kn", "faizabad": "hi"};
+function langForState(s){if(!s)return"";return STATE_LANG[(""+s).trim().toLowerCase()]||"";}
+const DKEY="calling_default_msg";
+const TKEY="calling_daily_target";
+const LKEY="calling_call_log"; // {date: count}
+const STATUSES=[
+  {k:"new",   label:"Pending",   badge:"b-new"},
+  {k:"done",  label:"Done",   badge:"b-done"},
+  {k:"later", label:"Later", badge:"b-later"},
+  {k:"no",    label:"No answer", badge:"b-no"},
+  {k:"int",   label:"Interested",badge:"b-int"},
+  {k:"notint",label:"Not interested",badge:"b-notint"},
+];
+let data=[];
+
+let filter="all";
+let showLimit=60; // kitne customer ek saath dikhane hain
+let dlgIndex=null;
+
+function todayStr(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function fmtDate(s){if(!s)return"";const[y,m,d]=s.split("-");return d+"/"+m+"/"+y.slice(2);}
+
+function load(){
+  try{data=JSON.parse(localStorage.getItem(KEY))||[];}catch(e){data=[];}
+  if((!data||data.length===0) && !localStorage.getItem("seeded_product_v1")){
+    data=SEED_DATA.slice();
+    localStorage.setItem(KEY,JSON.stringify(data));
+    localStorage.setItem("seeded_product_v1","1");
   }
-});
+  data.forEach(d=>{if(!d.status)d.status="new";});
+  const t=localStorage.getItem(TKEY)||"20";
+  document.getElementById('targetInput').value=t;
+  document.getElementById('targetVal').textContent=t;
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(data));}
+function getTemplates(){
+  try{const t=JSON.parse(localStorage.getItem(TMPLKEY)); if(t) return Object.assign({},DEFAULT_TEMPLATES,t);}catch(e){}
+  return Object.assign({},DEFAULT_TEMPLATES);
+}
+function saveTemplates(obj){localStorage.setItem(TMPLKEY,JSON.stringify(obj));}
+function fillTmplLangDropdown(){
+  const sel=document.getElementById('tmplLang');
+  if(!sel) return;
+  sel.innerHTML=LANGS.map(l=>`<option value="${l[0]}">${l[1]}</option>`).join('');
+  loadTmplEditor();
+}
+function loadTmplEditor(){
+  const code=document.getElementById('tmplLang').value;
+  document.getElementById('tmplText').value=getTemplates()[code]||'';
+}
+function saveTmpl(){
+  const code=document.getElementById('tmplLang').value;
+  const txt=document.getElementById('tmplText').value;
+  const t=getTemplates(); t[code]=txt; saveTemplates(t);
+  alert("Template save ho gaya ("+code+")");
+  render();
+}
+// build the actual message for a customer using their language template
+function msgFor(d){
+  const t=getTemplates();
+  const code=d.lang||'en';
+  let m = (d.msg && d.msg.trim()) ? d.msg : (t[code]||t['en']||'Namaste');
+  return m.replace(/\{name\}/g, d.name||'');
+}
 
-self.addEventListener("fetch", e => {
-  if (e.request.method !== "GET") return;
-  // NETWORK FIRST: naya laao, fail ho to cache (offline)
-  e.respondWith(
-    fetch(e.request)
-      .then(resp => {
-        const copy = resp.clone();
-        caches.open(RUNTIME).then(c => c.put(e.request, copy)).catch(()=>{});
-        return resp;
-      })
-      .catch(() => caches.match(e.request).then(r => r || caches.match("./index.html")))
-  );
+function getTarget(){return parseInt(localStorage.getItem(TKEY)||"20")||20;}
+function saveTarget(){
+  const v=parseInt(document.getElementById('targetInput').value)||20;
+  localStorage.setItem(TKEY,v);
+  document.getElementById('targetVal').textContent=v;
+  render();
+}
+function getLog(){try{return JSON.parse(localStorage.getItem(LKEY))||{};}catch(e){return{};}}
+function todayCalls(){return getLog()[todayStr()]||0;}
+function bumpToday(){const l=getLog();const t=todayStr();l[t]=(l[t]||0)+1;localStorage.setItem(LKEY,JSON.stringify(l));}
+
+function cleanNum(n){return (n||"").replace(/[^\d+]/g,"");}
+function telNum(n){let x=(n||"").replace(/[^0-9]/g,"");if(x.length===10)x="91"+x;return x;}
+function waNum(n){let x=n.replace(/\D/g,"");if(x.length===10)x="91"+x;if(x.startsWith("0"))x="91"+x.slice(1);return x;}
+
+function addOne(){
+  const name=document.getElementById('f-name').value.trim();
+  const num=cleanNum(document.getElementById('f-num').value);
+  const msg=document.getElementById('f-msg').value.trim();
+  if(!name||!num){alert("Name aur number dono zaroori hain.");return;}
+  if(data.some(d=>d.num===num)){if(!confirm("Yeh number pehle se hai. Phir bhi add karein?"))return;}
+  data.unshift({name,num,msg,status:"new",followup:"",updated:""});
+  save();
+  document.getElementById('f-name').value="";document.getElementById('f-num').value="";document.getElementById('f-msg').value="";
+  render();
+}
+function del(i){if(confirm("Hatayein?")){data.splice(i,1);save();render();}}
+function clearAll(){if(confirm("Saara data delete? Pakka?")){data=[];save();render();}}
+
+// when a call button is tapped
+function onCall(i){bumpToday();data[i].updated=todayStr();save();setTimeout(render,400);}
+
+function editNote(i){
+  const cur=data[i].note||"";
+  const txt=prompt("Is customer ke liye note / reason likhein:", cur);
+  if(txt===null) return; // cancel
+  data[i].note=txt.trim();
+  save();
+  renderList();
+}
+function setStatus(i,s){
+  data[i].status=s;
+  data[i].updated=todayStr();
+  if(s==="later"){ openDlg(i); return; } // ask for follow-up date
+  if(s!=="later") data[i].followup=""; // clear reminder if moved off "later"
+  save();
+  renderStats();renderDuebar();renderTarget();renderList(); // halka update (poora render nahi)
+}
+
+// follow-up date dialog
+function openDlg(i){
+  dlgIndex=i;
+  const d=new Date();d.setDate(d.getDate()+1); // default tomorrow
+  document.getElementById('dlgDate').value=todayStr.call(null);
+  document.getElementById('dlgDate').value=(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"));
+  document.getElementById('dlg').classList.add('show');
+}
+function closeDlg(){
+  // still mark as later even if cancelled, just no date
+  if(dlgIndex!=null){save();render();}
+  document.getElementById('dlg').classList.remove('show');dlgIndex=null;
+}
+function confirmDlg(){
+  const date=document.getElementById('dlgDate').value;
+  if(dlgIndex!=null){data[dlgIndex].followup=date;save();}
+  document.getElementById('dlg').classList.remove('show');dlgIndex=null;render();
+}
+
+function importFile(e){
+  const file=e.target.files[0];if(!file)return;
+  const name=(file.name||"").toLowerCase();
+  if(name.endsWith(".xlsx")||name.endsWith(".xls")){ importExcel(file); }
+  else { importCSVfile(file); }
+  e.target.value="";
+}
+// ===== SMART COLUMN DETECTION =====
+// Har column ko dekh ke khud pehchanta hai: Number / Email(skip) / State / Name
+// Chahe column kisi bhi order me hon.
+function looksLikeNumber(v){
+  const digits=(""+v).replace(/\D/g,"");
+  return digits.length>=10 && digits.length<=13;
+}
+function looksLikeEmail(v){ return /@/.test(""+v); }
+function looksLikeName(v){
+  const s=(""+v).trim();
+  // has letters, length>2, not purely digits
+  return s.length>2 && /[a-zA-Z\u0900-\u097F]/.test(s) && !/^\d+$/.test(s);
+}
+function looksLikeSerial(v){
+  const s=(""+v).trim();
+  return /^\d{1,4}$/.test(s); // 1-4 digit plain number = serial, not phone
+}
+function looksLikeState(v){
+  const s=(""+v).trim().toLowerCase();
+  if(!s) return false;
+  return STATE_LANG.hasOwnProperty(s);
+}
+function detectColumns(rows){
+  // sample up to 30 non-empty rows
+  const sample=rows.slice(0,30);
+  const colCount=Math.max(...sample.map(r=>r.length));
+  const score=[]; // per column: {num,email,state,text}
+  for(let c=0;c<colCount;c++){
+    let num=0,email=0,state=0,text=0,name=0,serial=0,nonEmpty=0;
+    sample.forEach(r=>{
+      const v=(r[c]==null?"":(""+r[c])).trim();
+      if(!v) return;
+      nonEmpty++;
+      if(looksLikeEmail(v)) email++;
+      else if(looksLikeNumber(v)) num++;
+      else if(looksLikeSerial(v)) serial++;
+      else if(looksLikeState(v)) { state++; text++; }
+      else if(looksLikeName(v)) { name++; text++; }
+      else text++;
+    });
+    score.push({c,num,email,state,text,name,serial,nonEmpty});
+  }
+  // pick best column for each role
+  const numberCol = score.slice().sort((a,b)=>b.num-a.num)[0];
+  const emailCols = score.filter(s=>s.email>s.nonEmpty*0.5).map(s=>s.c); // mostly-email cols => skip
+  const stateCol  = score.slice().sort((a,b)=>b.state-a.state)[0];
+  // name col = the text-heavy column that is NOT number/email/state
+  const used=new Set();
+  if(numberCol && numberCol.num>0) used.add(numberCol.c);
+  emailCols.forEach(c=>used.add(c));
+  if(stateCol && stateCol.state>0) used.add(stateCol.c);
+  // mark state col used so name doesn't grab it
+  let nameCol=score.filter(s=>!used.has(s.c)).sort((a,b)=>(b.name-a.name)||(b.text-a.text))[0];
+  if(!nameCol) nameCol=score.filter(s=>s.c!==(numberCol&&numberCol.c)).sort((a,b)=>(b.name-a.name))[0];
+  return {
+    name: nameCol?nameCol.c:0,
+    num: (numberCol&&numberCol.num>0)?numberCol.c:1,
+    state: (stateCol&&stateCol.state>0)?stateCol.c:-1,
+    emails: emailCols
+  };
+}
+function addRows(arr){
+  // remove fully-empty rows
+  arr=arr.filter(r=>r && r.some(c=>(""+(c==null?"":c)).trim()!==""));
+  if(!arr.length){alert("File khaali hai.");return;}
+  const map=detectColumns(arr);
+  let added=0, skipped=0;
+  arr.forEach(c=>{
+    const nm=(c[map.name]==null?"":(""+c[map.name])).trim();
+    const num=cleanNum((c[map.num]==null?"":(""+c[map.num])).toString());
+    const state=map.state>=0?((c[map.state]==null?"":(""+c[map.state])).trim()):"";
+    // message: NEVER use email column. Leave blank (templates bhasha se bhejte hain).
+    const msg="";
+    if(nm&&num){
+      const lang=langForState(state)|| "hi";
+      data.push({name:nm,num,msg,status:"new",followup:"",updated:"",state,lang});
+      added++;
+    } else skipped++;
+  });
+  save();__comboFilled=false;render();
+  let info=added+" customers import ho gaye.";
+  if(map.emails.length) info+="\n(Email column apne aap chhod diya — message me nahi gaya.)";
+  if(skipped>0) info+="\n"+skipped+" rows chhute (naam ya number nahi mila).";
+  alert(info);
+}
+function isHeader(row){
+  const j=(row.join? row.join(" ") : "").toLowerCase();
+  return /name|naam|number|mobile|phone|email|city|state|source/.test(j);
+}
+function importCSVfile(file){
+  const r=new FileReader();
+  r.onload=function(){
+    const lines=r.result.split(/\r?\n/).filter(l=>l.trim());
+    if(!lines.length){alert("File khaali hai.");return;}
+    let start=isHeader(splitCSV(lines[0]))?1:0;
+    const rows=[];
+    for(let i=start;i<lines.length;i++){rows.push(splitCSV(lines[i]));}
+    addRows(rows);
+  };
+  r.readAsText(file);
+}
+function importExcel(file){
+  if(typeof XLSX==="undefined"){alert("Excel reader load nahi hua. Internet check karein ya CSV use karein.");return;}
+  const r=new FileReader();
+  r.onload=function(){
+    try{
+      const wb=XLSX.read(new Uint8Array(r.result),{type:"array"});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      let rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
+      rows=rows.filter(rw=>rw && rw.some(c=>(""+c).trim()!==""));
+      if(!rows.length){alert("File khaali hai.");return;}
+      if(isHeader(rows[0])) rows=rows.slice(1);
+      addRows(rows);
+    }catch(err){alert("Excel padhne me dikkat: "+err.message);}
+  };
+  r.readAsArrayBuffer(file);
+}
+function splitCSV(line){const out=[];let cur="";let q=false;
+  for(let i=0;i<line.length;i++){const ch=line[i];
+    if(ch==='"')q=!q;else if(ch===','&&!q){out.push(cur);cur="";}else cur+=ch;}
+  out.push(cur);return out;}
+
+function exportCSV(){
+  let csv="name,number,message,status,followup,state,lang\n";
+  data.forEach(d=>{csv+=`"${d.name}","${d.num}","${(d.msg||"").replace(/"/g,'""')}","${d.status}","${d.followup||""}","${d.state||""}","${d.lang||""}"\n`;});
+  const blob=new Blob([csv],{type:"text/csv"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="customers.csv";a.click();
+}
+
+function isDue(d){return d.status==="later" && d.followup && d.followup<=todayStr();}
+
+function renderTarget(){
+  const t=getTarget(),c=todayCalls();
+  document.getElementById('targetVal').textContent=t;
+  countUp(document.getElementById('todayCount'), c);
+  const pct=Math.min(100,c/t);
+  const circ=289; // 2*pi*46
+  const ring=document.getElementById('ringProg');
+  if(ring) ring.style.strokeDashoffset = (circ*(1-pct)).toFixed(1);
+}
+function countUp(el,to){
+  if(!el) return;
+  const from=parseInt(el.textContent)||0;
+  if(from===to){el.textContent=to;return;}
+  const steps=12; let i=0;
+  const inc=(to-from)/steps;
+  clearInterval(el._t);
+  el._t=setInterval(()=>{
+    i++; const v=Math.round(from+inc*i);
+    el.textContent = i>=steps ? to : v;
+    if(i>=steps) clearInterval(el._t);
+  },28);
+}
+function renderDuebar(){
+  const due=data.filter(isDue).length;
+  const bar=document.getElementById('duebar');
+  if(due>0){bar.classList.add('show');bar.textContent=`🔔 Aaj ${due} follow-up call due hain — dekhne ke liye tap karein`;}
+  else bar.classList.remove('show');
+}
+function renderStats(){
+  const c={total:data.length};STATUSES.forEach(s=>c[s.k]=0);
+  data.forEach(d=>c[d.status]=(c[d.status]||0)+1);
+  document.getElementById('stats').innerHTML=`
+    <div class="scard s-total"><b>${c.total}</b><span>Total</span></div>
+    <div class="scard s-pend"><b>${c.new}</b><span>Pending</span></div>
+    <div class="scard s-done"><b>${c.done}</b><span>Done</span></div>
+    <div class="scard s-int"><b>${c.int}</b><span>Interested</span></div>`;
+  const cc=document.getElementById('custCount');
+  if(cc) cc.textContent=data.length+" contacts";
+}
+let __comboFilled=false;
+function fillComboFilters(force){
+  const langSel=document.getElementById('langFilter');
+  const stSel=document.getElementById('stateFilter');
+  if(!langSel||!stSel) return;
+  if(__comboFilled && !force) return; // sirf ek baar (ya force pe) — tez
+  __comboFilled=true;
+  // languages present in data
+  const langsIn=[...new Set(data.map(d=>d.lang).filter(Boolean))];
+  const curLang=langSel.value;
+  langSel.innerHTML='<option value="">🌐 All languages</option>'+
+    langsIn.map(code=>`<option value="${code}" ${code===curLang?'selected':''}>${langName(code)}</option>`).join('');
+  // states present in data
+  const statesIn=[...new Set(data.map(d=>d.state).filter(Boolean))].sort();
+  const curSt=stSel.value;
+  stSel.innerHTML='<option value="">📍 All states</option>'+
+    statesIn.map(s=>`<option value="${esc(s)}" ${s===curSt?'selected':''}>${esc(s)}</option>`).join('');
+}
+function renderFilters(){
+  const dueN=data.filter(isDue).length;
+  const opts=[{k:"all",label:"All"},{k:"due",label:"Due"+(dueN?` (${dueN})`:"")}].concat(STATUSES.map(s=>({k:s.k,label:s.label})));
+  document.getElementById('filterbar').innerHTML=opts.map(o=>
+    `<div class="chip ${filter===o.k?'on':''}" onclick="setFilter('${o.k}')">${o.label}</div>`).join("");
+}
+function showMore(){ showLimit+=60; renderList(); }
+function setFilter(f){ showLimit=60; filter=f; renderFilters(); renderList(); window.scrollTo({top:0,behavior:'smooth'});}
+
+function langName(code){const f=LANGS.find(l=>l[0]===code);return f?f[1]:code;}
+function langOptions(sel){return LANGS.map(l=>`<option value="${l[0]}" ${l[0]===sel?'selected':''}>${l[1]}</option>`).join('');}
+function stateLabel(s){return s?esc(s):'—';}
+function setLang(i,code){data[i].lang=code;save();render();}
+let selected={};
+function toggleSel(i,checked){ if(checked) selected[i]=true; else delete selected[i]; updateBulkBar(); }
+function selCount(){return Object.keys(selected).length;}
+function updateBulkBar(){
+  const n=selCount();
+  const bar=document.getElementById('bulkbar');
+  document.getElementById('bulkcount').textContent=n+" selected";
+  if(n>0) bar.classList.add('show'); else bar.classList.remove('show');
+}
+function clearSel(){selected={};render();}
+function selectAllShown(){
+  lastShownIdx.forEach(i=>{selected[i]=true;});
+  render();
+}
+let lastShownIdx=[];
+function bulkWhatsApp(){
+  const idxs=Object.keys(selected).map(Number);
+  if(!idxs.length){alert("Pehle customer select karo.");return;}
+  if(!confirm(idxs.length+" logo ka WhatsApp ek-ek karke khulega. Har ek pe SEND dabana hai. Shuru karein?"))return;
+  let n=0;
+  idxs.forEach((i,k)=>{
+    const d=data[i]; if(!d) return;
+    const wa=waNum(d.num); const msg=encodeURIComponent(msgFor(d));
+    setTimeout(()=>{ window.open('https://wa.me/'+wa+'?text='+msg,'_blank'); }, k*1200);
+    // mark as contacted
+    n++;
+  });
+  setTimeout(()=>{ alert(n+" WhatsApp tab khul gaye. Ab har tab me SEND dabao."); }, idxs.length*1200+300);
+}
+function render(){
+  // heavy stuff (stats, dropdowns) — sirf jab data/status badle
+  renderTarget();renderDuebar();renderStats();renderFilters();fillComboFilters();
+  renderList();
+}
+function renderList(){
+  const q=document.getElementById('search').value.trim().toLowerCase();
+  const list=document.getElementById('list');
+  var _cnt=document.getElementById('count'); if(_cnt) _cnt.textContent=data.length;
+
+  let arr=data.map((d,i)=>({d,i}));
+  // due first ordering (sirf jab koi due ho — warna sort skip, tez)
+  if(data.some(isDue)) arr.sort((a,b)=>(isDue(b.d)?1:0)-(isDue(a.d)?1:0));
+
+  const fLang=(document.getElementById('langFilter')||{}).value||"";
+  const fState=(document.getElementById('stateFilter')||{}).value||"";
+  const shown=arr.filter(({d})=>{
+    if(filter==="due"){if(!isDue(d))return false;}
+    else if(filter!=="all" && d.status!==filter) return false;
+    if(fLang && d.lang!==fLang) return false;
+    if(fState && d.state!==fState) return false;
+    if(q && !(d.name.toLowerCase().includes(q)||d.num.includes(q))) return false;
+    return true;
+  });
+  if(!shown.length){
+    list.innerHTML='<div class="empty">'+(data.length?'Koi match nahi mila.':'Abhi koi customer nahi. Upar se add karein ya CSV import karein.')+'</div>';
+    return;
+  }
+  lastShownIdx=shown.map(o=>o.i);
+  // PERFORMANCE: bade list me thode-thode dikhao (tez chalne ke liye)
+  const tooMany=shown.length>showLimit;
+  const showArr=tooMany?shown.slice(0,showLimit):shown;
+  list.innerHTML=showArr.map(({d,i})=>{
+    const msg=encodeURIComponent(msgFor(d));
+    const tel=telNum(d.num), wa=waNum(d.num);
+    const st=STATUSES.find(s=>s.k===d.status)||STATUSES[0];
+    const due=isDue(d);
+    return `<div class="card ${d.status==='done'?'done':''} ${due?'due':''}">
+      <div class="top">
+        <input type="checkbox" class="selbox" ${selected[i]?'checked':''} onclick="toggleSel(${i},this.checked)">
+        <span class="name">${esc(d.name)}</span>
+        <span class="num">${esc(d.num)}</span>
+      </div>
+      <span class="badge ${st.badge}">${st.label}</span>
+      ${d.followup?`<span class="badge badge-due">🔔 ${fmtDate(d.followup)}</span>`:''}
+      ${d.msg?`<div class="note">📝 ${esc(d.msg)}</div>`:''}
+      ${d.updated?`<div class="meta">Last update: ${fmtDate(d.updated)}</div>`:''}
+      <div class="langrow">
+        <span class="langlbl">🌐 ${stateLabel(d.state)}</span>
+        <select class="langsel" onchange="setLang(${i},this.value)">${langOptions(d.lang)}</select>
+      </div>
+      <div class="actions">
+        <a class="a-call" href="tel:${tel}" onclick="onCall(${i})"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:7px;flex:none;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Call</a>
+        <a class="a-wa" href="https://wa.me/${wa}?text=${msg}" target="_blank" rel="noopener"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:7px;flex:none;"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>WA</a>
+        <a class="a-sms" href="sms:${tel}?body=${msg}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:7px;flex:none;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>SMS</a>
+        <button class="a-del" onclick="del(${i})">Delete</button>
+      </div>
+      <button onclick="openBankSend(${i})" style="width:100%;margin-top:8px;padding:11px;border:1px solid var(--line2);border-radius:12px;background:var(--glass2);color:var(--ink);font-weight:700;font-size:13px;cursor:pointer;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:7px;flex:none;"><line x1="3" y1="21" x2="21" y2="21"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="5,6 12,3 19,6"/><line x1="4" y1="10" x2="4" y2="21"/><line x1="20" y1="10" x2="20" y2="21"/><line x1="8" y1="14" x2="8" y2="17"/><line x1="12" y1="14" x2="12" y2="17"/><line x1="16" y1="14" x2="16" y2="17"/></svg>Send Bank / UPI</button>
+      ${d.note?`<div onclick="editNote(${i})" style="margin-top:8px;background:rgba(255,180,94,.1);border:1px solid rgba(255,180,94,.3);border-radius:12px;padding:10px 12px;font-size:13px;color:#ffce9e;cursor:pointer;">📝 ${esc(d.note)}<span style="float:right;opacity:.6;">badlo</span></div>`:`<button onclick="editNote(${i})" style="width:100%;margin-top:8px;padding:11px;border:1px dashed var(--line2);border-radius:12px;background:transparent;color:var(--muted);font-weight:600;font-size:13px;cursor:pointer;">📝 Add Note</button>`}
+      <div class="statusrow">
+        ${STATUSES.map(s=>`<button class="${d.status===s.k?'sel':''}" onclick="setStatus(${i},'${s.k}')">${s.label}</button>`).join("")}
+      </div>
+    </div>`;
+  }).join("") + (tooMany?`<div style="text-align:center;padding:8px 0 24px;">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">${showArr.length} / ${shown.length} dikhaye</div>
+      <button onclick="showMore()" style="padding:13px 28px;border:none;border-radius:14px;background:linear-gradient(135deg,var(--brand),var(--brand-deep));color:#fff;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px rgba(79,124,255,.35);">⬇ Aur ${Math.min(60,shown.length-showArr.length)} dikhao</button>
+    </div>`:"");
+}
+function esc(s){return (s||"").replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+// ---- Install (PWA) ----
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',(e)=>{
+  e.preventDefault();
+  deferredPrompt=e;
+  document.getElementById('installBtn').classList.add('show');
 });
+window.addEventListener('appinstalled',()=>{
+  document.getElementById('installBtn').classList.remove('show');
+  deferredPrompt=null;
+});
+function doInstall(){
+  if(deferredPrompt){
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.finally(()=>{
+      deferredPrompt=null;
+      document.getElementById('installBtn').classList.remove('show');
+    });
+  } else {
+    alert("Install karne ke liye:\n\nChrome (Android): upar 3 dots (⋮) → 'Add to Home screen'\n\niPhone (Safari): niche Share (□↑) → 'Add to Home Screen'");
+  }
+}
+// register a tiny service worker so install works (needed for PWA)
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    // naya version detect karo -> update bar dikhao
+    function checkWaiting(){
+      if(reg.waiting){ showUpdateBar(); }
+    }
+    reg.addEventListener('updatefound',()=>{
+      const nw=reg.installing;
+      if(nw) nw.addEventListener('statechange',()=>{
+        // naya version taiyar hai aur purana chal raha hai -> update available
+        if(nw.state==='installed' && navigator.serviceWorker.controller){
+          showUpdateBar();
+        }
+      });
+    });
+    checkWaiting();
+    // har baar app khulte hi naya check karo
+    reg.update().catch(()=>{});
+    // har 30 min me bhi check (app khula rehne pe)
+    setInterval(()=>reg.update().catch(()=>{}), 30*60*1000);
+  }).catch(()=>{});
+
+  // reload sirf ek baar (jab naya SW control le)
+  let __reloaded=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(__reloaded) return; __reloaded=true;
+    window.location.reload();
+  });
+}
+
+
+// ===== LICENSE SYSTEM =====
+// IMPORTANT: apna Apps Script web-app URL yahan daalein (setup guide me bataya hai)
+const LICENSE_API="https://script.google.com/macros/s/AKfycbxvDj01LPYrhG3NvXMnp_obviPAlCxrMecfxMB-i48ZjkRkAcqLtBplCSlxzBlsGiqO/exec";
+const LICKEY="calling_license_key";
+const DEVIDKEY="calling_device_id";
+const DEVNAMEKEY="calling_device_name";
+function deviceId(){
+  let d=localStorage.getItem(DEVIDKEY);
+  if(!d){ d="DEV-"+Math.random().toString(36).slice(2,8).toUpperCase()+"-"+Date.now().toString(36).toUpperCase(); localStorage.setItem(DEVIDKEY,d); }
+  return d;
+}
+function deviceName(){ return localStorage.getItem(DEVNAMEKEY)||""; }
+
+function showApp(){ const g=document.getElementById('licGate'); if(g) g.style.display='none'; }
+function showGate(msg){ const g=document.getElementById('licGate'); if(g) g.style.display='flex';
+  if(msg){const m=document.getElementById('licMsg'); if(m) m.textContent=msg;} }
+
+async function checkLicense(key){
+  if(!LICENSE_API || LICENSE_API.indexOf("PASTE_")===0){
+    // API set nahi hai -> demo/seller mode: allow (so seller can test)
+    return {ok:true, offlineNote:true};
+  }
+  try{
+    const r=await fetch(LICENSE_API+"?key="+encodeURIComponent(key)+"&dev="+encodeURIComponent(deviceId())+"&name="+encodeURIComponent(deviceName()),{method:"GET"});
+    const j=await r.json();
+    return j; // expected {ok:true} or {ok:false,reason:"..."}
+  }catch(e){
+    // network fail -> if previously activated, allow offline use
+    if(localStorage.getItem(LICKEY)===key) return {ok:true, offline:true};
+    return {ok:false, reason:"Internet nahi. Activate karne ke liye internet chahiye."};
+  }
+}
+
+async function activateLicense(){
+  const key=(document.getElementById('licInput').value||"").trim();
+  if(!key){ document.getElementById('licMsg').textContent="Key daalein."; return; }
+  const dn=(document.getElementById('devNameInput').value||"").trim();
+  if(dn) localStorage.setItem(DEVNAMEKEY, dn);
+  document.getElementById('licBtn').textContent="Checking...";
+  const res=await checkLicense(key);
+  document.getElementById('licBtn').textContent="Activate";
+  if(res && res.ok){
+    localStorage.setItem(LICKEY,key);
+    showApp();
+    startApp();
+  } else {
+    document.getElementById('licMsg').textContent=(res&&res.reason)||"Galat ya band key.";
+  }
+}
+
+async function licenseInit(){
+  const saved=localStorage.getItem(LICKEY);
+  if(!saved){ showGate(""); return; }
+  // Pehle se activated hai -> TURANT khol do (call ke baad logout na ho)
+  showApp(); startApp();
+  // Background me halke se verify -> sirf agar server SAAF-SAAF block/galat kahe tabhi logout
+  try{
+    const res=await checkLicenseSilent(saved);
+    if(res && res.ok===false && res.hard===true){
+      localStorage.removeItem(LICKEY);
+      showGate(res.reason||"License band ho gayi hai.");
+    }
+  }catch(e){ /* internet slow/fail -> kuch mat karo, app chalu rehne do */ }
+}
+
+// Silent check: network error ya koi bhi shaq -> logout NAHI karta.
+// Sirf server ka pakka "blocked/galat key" -> hard:true
+async function checkLicenseSilent(key){
+  if(!LICENSE_API || LICENSE_API.indexOf("PASTE_")===0) return {ok:true};
+  try{
+    const r=await fetch(LICENSE_API+"?key="+encodeURIComponent(key)+"&dev="+encodeURIComponent(deviceId())+"&name="+encodeURIComponent(deviceName()),{method:"GET"});
+    const j=await r.json();
+    if(j && j.ok===false){
+      const reason=(j.reason||"").toLowerCase();
+      // sirf in do wajah pe pakka logout
+      if(reason.indexOf("band")>=0 || reason.indexOf("block")>=0 || reason.indexOf("galat")>=0){
+        return {ok:false, hard:true, reason:j.reason};
+      }
+      // limit-full ya koi aur -> already activated device hai, chalu rehne do
+      return {ok:true};
+    }
+    return {ok:true};
+  }catch(e){ return {ok:true}; } // network fail -> chalu rehne do
+}
+
+let __appStarted=false;
+function startApp(){
+  if(__appStarted) return; __appStarted=true;
+  load();fillTmplLangDropdown();renderBanks();render();
+}
+
+licenseInit();
+
+// ===== UPDATE SYSTEM (WhatsApp jaisa) =====
+function showUpdateBar(){ var b=document.getElementById('updateBar'); if(b) b.style.display='block'; }
+function doUpdate(){
+  var b=document.getElementById('updateBar');
+  if(b){ b.textContent="⏳ Update ho raha hai..."; }
+  // data/templates SAFE rehte hain (localStorage me, SW se nahi jate)
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.getRegistration().then(reg=>{
+      if(reg && reg.waiting){
+        // naye SW ko chालu hone ko bolo -> controllerchange -> reload
+        reg.waiting.postMessage({type:'SKIP_WAITING'});
+      } else {
+        // fallback: seedha reload
+        window.location.reload();
+      }
+    }).catch(()=>window.location.reload());
+  } else { window.location.reload(); }
+}
+
+// always show install button (Chrome signal optional)
+(function(){
+  function showInstallBtn(){ var b=document.getElementById('installBtn'); if(b) b.classList.add('show'); }
+  if(document.readyState!=='loading') showInstallBtn();
+  else document.addEventListener('DOMContentLoaded', showInstallBtn);
+})(); // ALWAYS_SHOW_INSTALL
+</script>
+
+<!-- ===== SMART CALLING OVERLAY ===== -->
+<style>
+
+
+</style>
+
+
+
+<!-- Bank send chooser -->
+<div id="bankDlg" class="dlg">
+  <div class="box">
+    <h3>💳 Which account to send?</h3>
+    <div id="bankDlgList"></div>
+    <div class="drow" style="margin-top:10px">
+      <button class="btn-ghost" onclick="closeBankSend()">Cancel</button>
+    </div>
+  </div>
+</div>
+<script>
+let bankSendIdx=null;
+function openBankSend(i){
+  const banks=getBanks();
+  if(!banks.length){ alert("Please add a bank account first (upar '💳 Bank accounts' me)."); return; }
+  bankSendIdx=i;
+  const d=data[i];
+  document.getElementById('bankDlgList').innerHTML=banks.map((b,bi)=>`
+    <button onclick="sendBank(${bi})" style="width:100%;text-align:left;margin-bottom:8px;padding:13px;border:1px solid var(--line2);border-radius:12px;background:var(--bg2);color:var(--ink);cursor:pointer;">
+      <b style="font-size:14px;">${esc(b.name)}</b>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px;">${b.acc?('A/c '+esc(b.acc)+'  '):''}${b.upi?('UPI '+esc(b.upi)):''}</div>
+    </button>`).join("");
+  document.getElementById('bankDlg').classList.add('show');
+}
+function closeBankSend(){ document.getElementById('bankDlg').classList.remove('show'); bankSendIdx=null; }
+function sendBank(bi){
+  const banks=getBanks();
+  const b=banks[bi];
+  if(!b || bankSendIdx==null) return;
+  const d=data[bankSendIdx];
+  const wa=waNum(d.num);
+  const txt=encodeURIComponent(bankMsgText(b));
+  closeBankSend();
+  window.open("https://wa.me/"+wa+"?text="+txt, "_blank");
+}
+</script>
+
+
+<!-- WORK MODE: full screen, ek customer, call+wa+bank, status do -> agla -->
+
+
+
+<!-- ===== WORK MODE (full screen, ek-ek customer) ===== -->
+<div id="workOv" style="display:none;position:fixed;inset:0;z-index:9997;background:linear-gradient(180deg,#080b14,#0a0e1c 60%,#080b14);overflow-y:auto;">
+  <div style="max-width:480px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;padding:18px 20px 28px;">
+    <!-- top bar -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+      <button onclick="closeWork()" style="background:rgba(120,140,190,.15);border:1px solid rgba(120,140,190,.25);color:#eef2fb;border-radius:12px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;">✕ Band</button>
+      <div id="workProg" style="margin-left:auto;font-size:13px;color:#9aa6c4;font-weight:700;"></div>
+    </div>
+    <!-- progress bar -->
+    <div style="height:6px;background:rgba(120,140,190,.15);border-radius:6px;overflow:hidden;margin-bottom:22px;">
+      <div id="workProgBar" style="height:100%;width:0;background:linear-gradient(90deg,#4f7cff,#1fd18b);transition:width .4s;"></div>
+    </div>
+    <!-- customer card -->
+    <div id="workCard" style="flex:1;display:flex;flex-direction:column;justify-content:center;"></div>
+  </div>
+</div>
+
+<script>
+let workQueue=[];   // indices baaki hain
+let workIdx=null;   // current data index
+let workDone=0;     // kitne niptaye
+let workTotal=0;
+
+function startWork(){
+  // jo "pending/new" + due hain unhe lo (jo abhi kaam baaki hai)
+  // filter/lang/state jo laga ho, usi ke hisaab se queue
+  const fl=(document.getElementById('langFilter')||{}).value||"";
+  const fs=(document.getElementById('stateFilter')||{}).value||"";
+  workQueue=[];
+  data.forEach((d,i)=>{
+    if(fl && d.lang!==fl) return;
+    if(fs && (d.state||"")!==fs) return;
+    if(filter==='done' && d.status!=='done') return;
+    if(filter==='int' && d.status!=='int') return;
+    // Work mode: jo abhi nipte nahi (pending, nahi utha, baad mein) unhe priority
+    workQueue.push(i);
+  });
+  if(!workQueue.length){ alert("Koi customer nahi mila is filter me."); return; }
+  // pending/baad-mein pehle, done/notint baad me
+  workQueue.sort((a,b)=>{
+    const rank=s=>({'new':0,'no':1,'later':0,'int':2,'notint':3,'done':4}[s]??0);
+    return rank(data[a].status)-rank(data[b].status);
+  });
+  workTotal=workQueue.length; workDone=0;
+  document.getElementById('workOv').style.display='block';
+  document.body.style.overflow='hidden';
+  nextWork(true);
+}
+function closeWork(){
+  document.getElementById('workOv').style.display='none';
+  document.body.style.overflow='';
+  render(); // list refresh
+}
+function nextWork(first){
+  if(!first) workDone++;
+  if(!workQueue.length){ finishWork(); return; }
+  workIdx=workQueue.shift();
+  drawWork();
+}
+function finishWork(){
+  document.getElementById('workCard').innerHTML=`
+    <div style="text-align:center;padding:40px 10px;">
+      <div style="font-size:64px;margin-bottom:16px;">🎉</div>
+      <div style="font-family:'Sora';font-size:26px;font-weight:800;color:#eef2fb;margin-bottom:8px;">All done!</div>
+      <div style="font-size:15px;color:#9aa6c4;margin-bottom:24px;">${workDone} customers ho gaye. Shabaash!</div>
+      <button onclick="closeWork()" style="padding:14px 32px;border:none;border-radius:14px;background:linear-gradient(135deg,#4f7cff,#2348c8);color:#fff;font-size:15px;font-weight:800;cursor:pointer;">Go back</button>
+    </div>`;
+  document.getElementById('workProg').textContent=`${workTotal}/${workTotal} ✓`;
+  document.getElementById('workProgBar').style.width='100%';
+}
+function drawWork(){
+  const d=data[workIdx];
+  const done=workTotal-workQueue.length-1;
+  document.getElementById('workProg').textContent=`${done+1} / ${workTotal}`;
+  document.getElementById('workProgBar').style.width=(((done)/workTotal)*100)+'%';
+  const tel=telNum(d.num), wa=waNum(d.num), msg=encodeURIComponent(msgFor(d));
+  const __lg=LANGS.find(l=>l[0]===d.lang); const langName=__lg?__lg[1]:(d.lang||'');
+  const st=STATUSES.find(s=>s.k===d.status)||STATUSES[0];
+  document.getElementById('workCard').innerHTML=`
+    <div style="text-align:center;margin-bottom:8px;">
+      <div style="font-family:'Sora';font-size:30px;font-weight:800;color:#eef2fb;line-height:1.2;margin-bottom:8px;">${esc(d.name||'(naam nahi)')}</div>
+      <div style="font-size:22px;color:#9db4ff;font-weight:700;letter-spacing:1px;margin-bottom:8px;">${esc(d.num||'')}</div>
+      <div style="display:inline-flex;gap:8px;align-items:center;font-size:13px;color:#9aa6c4;">
+        ${d.state?`<span>📍 ${esc(d.state)}</span>`:''} ${langName?`<span>🌐 ${esc(langName)}</span>`:''}
+      </div>
+      ${d.note?`<div style="margin-top:14px;background:rgba(255,180,94,.1);border:1px solid rgba(255,180,94,.3);border-radius:12px;padding:11px 14px;font-size:14px;color:#ffce9e;">📝 ${esc(d.note)}</div>`:''}
+    </div>
+
+    <!-- bade action buttons: Call + WhatsApp + Bank -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:22px 0 12px;">
+      <a href="tel:${tel}" onclick="onCall(${workIdx})" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:22px 10px;border-radius:18px;background:linear-gradient(135deg,#1fd18b,#13a06a);color:#fff;text-decoration:none;font-weight:800;font-size:17px;box-shadow:0 8px 22px rgba(31,209,139,.4);">
+        <span style="font-size:30px;">📞</span> Call
+      </a>
+      <a href="https://wa.me/${wa}?text=${msg}" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:22px 10px;border-radius:18px;background:linear-gradient(135deg,#25d366,#128c3e);color:#fff;text-decoration:none;font-weight:800;font-size:17px;box-shadow:0 8px 22px rgba(37,211,102,.4);">
+        <span style="font-size:30px;">💬</span> WhatsApp
+      </a>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px;">
+      <a href="sms:${tel}?body=${msg}" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border-radius:14px;background:rgba(120,140,190,.12);border:1px solid rgba(120,140,190,.25);color:#eef2fb;text-decoration:none;font-weight:700;font-size:14px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:7px;flex:none;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>SMS</a>
+      <button onclick="openBankSend(${workIdx})" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border-radius:14px;background:rgba(120,140,190,.12);border:1px solid rgba(120,140,190,.25);color:#eef2fb;font-weight:700;font-size:14px;cursor:pointer;">💳 Bank/UPI</button>
+    </div>
+
+    <!-- status do -> agla aaye -->
+    <div style="font-size:13px;color:#9aa6c4;text-align:center;margin-bottom:10px;font-weight:600;">Set status, next comes automatically ↓</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <button onclick="workStatus('done')" style="padding:15px;border:none;border-radius:14px;background:rgba(31,209,139,.15);border:1px solid rgba(31,209,139,.4);color:#5ef0b0;font-weight:800;font-size:15px;cursor:pointer;">✅ Ho gaya</button>
+      <button onclick="workStatus('int')" style="padding:15px;border:none;border-radius:14px;background:rgba(79,124,255,.15);border:1px solid rgba(79,124,255,.4);color:#9db4ff;font-weight:800;font-size:15px;cursor:pointer;">⭐ Interested</button>
+      <button onclick="workStatus('no')" style="padding:15px;border:none;border-radius:14px;background:rgba(255,107,120,.12);border:1px solid rgba(255,107,120,.35);color:#ff9aa3;font-weight:800;font-size:15px;cursor:pointer;">📵 Nahi utha</button>
+      <button onclick="workStatus('later')" style="padding:15px;border:none;border-radius:14px;background:rgba(255,180,94,.12);border:1px solid rgba(255,180,94,.35);color:#ffce9e;font-weight:800;font-size:15px;cursor:pointer;">⏰ Baad mein</button>
+      <button onclick="workStatus('notint')" style="padding:15px;border:none;border-radius:14px;background:rgba(150,160,180,.12);border:1px solid rgba(150,160,180,.3);color:#aab2c6;font-weight:800;font-size:15px;cursor:pointer;">🚫 Not interested</button>
+      <button onclick="workNote(${workIdx})" style="padding:15px;border:none;border-radius:14px;background:rgba(150,160,180,.08);border:1px dashed rgba(150,160,180,.35);color:#9aa6c4;font-weight:700;font-size:14px;cursor:pointer;">📝 Note</button>
+    </div>
+    <button onclick="nextWork()" style="margin-top:14px;width:100%;padding:13px;border:none;border-radius:14px;background:transparent;border:1px solid rgba(120,140,190,.25);color:#9aa6c4;font-weight:700;font-size:14px;cursor:pointer;">Skip → next customer</button>
+  `;
+}
+function workStatus(s){
+  data[workIdx].status=s;
+  data[workIdx].updated=todayStr();
+  if(s==='later'){
+    // baad mein -> kal ki date daal do (quick), bina dialog ke flow na ruke
+    const t=new Date(); t.setDate(t.getDate()+1);
+    data[workIdx].followup=t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");
+  } else {
+    data[workIdx].followup="";
+  }
+  save();
+  nextWork();
+}
+function workNote(i){
+  const cur=data[i].note||"";
+  const txt=prompt("Note / reason likhein:", cur);
+  if(txt===null) return;
+  data[i].note=txt.trim(); save(); drawWork();
+}
+</script>
+
+</body>
+</html>
